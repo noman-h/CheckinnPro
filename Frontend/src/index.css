@@ -1,0 +1,163 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  html {
+    @apply min-h-full bg-slate-50;
+  }
+
+  body {
+    @apply min-h-screen bg-slate-50 text-slate-900 antialiased transition-colors duration-300 dark:bg-slate-950 dark:text-slate-100;
+  }
+
+  button,
+  input {
+    @apply transition duration-200;
+  }
+}
+
+.auth-background {
+  background-image: var(--light-auth-background);
+}
+
+.dark .auth-background {
+  background-image: var(--dark-auth-background);
+}
+
+.manage-page {
+  @apply rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20;
+}
+
+.manage-page > div:first-child {
+  @apply mb-4 rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60;
+}
+
+.manage-page button.bg-slate-100 {
+  @apply dark:bg-slate-800 dark:text-slate-300;
+}
+
+.manage-page .overflow-x-auto {
+  @apply border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900;
+}
+
+.manage-page thead {
+  @apply dark:bg-slate-800 dark:text-slate-300;
+}
+
+.manage-page tbody tr {
+  @apply dark:border-slate-800;
+}
+
+.manage-page td.text-slate-400 {
+  @apply dark:text-slate-500;
+}
+
+.manage-page td.text-slate-600 {
+  @apply dark:text-slate-300;
+}
+
+.manage-page td.text-slate-800 {
+  @apply dark:text-slate-100;
+}
+
+.manage-page .fixed {
+  @apply bg-slate-950/60 px-4 backdrop-blur-sm;
+}
+
+.manage-page .fixed > div {
+  @apply w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900;
+}
+
+.manage-page .fixed h3 {
+  @apply dark:text-white;
+}
+
+.manage-page .fixed input,
+.manage-page .fixed select {
+  @apply border-slate-300 bg-white text-slate-950 outline-none focus:border-indigo-500 focus:ring-3 focus:ring-indigo-500/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white;
+}
+
+.hotel-form-page {
+  @apply mx-auto min-h-screen max-w-3xl bg-slate-50 px-4 py-10 sm:px-6 dark:bg-slate-950;
+}
+
+.hotel-form-page > div {
+  @apply rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/50 sm:p-8 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20;
+}
+
+.hotel-form-page h2 {
+  @apply text-2xl font-bold tracking-tight text-slate-950 dark:text-white;
+}
+
+.hotel-form-page label {
+  @apply text-slate-700 dark:text-slate-200;
+}
+
+.hotel-form-page input,
+.hotel-form-page textarea,
+.hotel-form-page select {
+  @apply rounded-lg border-slate-300 bg-white text-slate-950 outline-none placeholder:text-slate-400 focus:border-indigo-500 focus:ring-3 focus:ring-indigo-500/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white;
+}
+
+.room-form-page {
+  @apply mx-auto mb-0 mt-8 max-w-4xl rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-200/50 sm:p-8 sm:pb-12 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20;
+}
+
+.room-form-page h2 {
+  @apply tracking-tight text-slate-950 dark:text-white;
+}
+
+.room-form-page h3 {
+  @apply text-slate-800 dark:text-slate-100;
+}
+
+.room-form-page label {
+  @apply text-slate-700 dark:text-slate-200;
+}
+
+.room-form-page input:not([type='checkbox']),
+.room-form-page select {
+  @apply rounded-lg border-slate-300 bg-white text-slate-950 outline-none placeholder:text-slate-400 focus:border-indigo-500 focus:ring-3 focus:ring-indigo-500/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white;
+}
+
+.room-form-page input[type='checkbox'] {
+  @apply border-slate-300 text-indigo-600 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-950 dark:text-indigo-400;
+}
+
+.room-form-page hr {
+  @apply border-slate-200 dark:border-slate-800;
+}
+
+.room-form-page button[type='submit'] {
+  @apply rounded-lg bg-indigo-600 shadow-sm hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-indigo-500 dark:hover:bg-indigo-400;
+}
+
+.manage-page .room-details-modal > .room-details-card {
+  @apply flex max-h-[calc(100dvh-2rem)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl dark:border-slate-700 dark:bg-slate-900;
+}
+
+.room-details-card > div:first-child,
+.room-details-card > div:last-child {
+  @apply shrink-0;
+}
+
+.room-details-content {
+  @apply flex-1 overflow-y-auto p-4 sm:p-6;
+}
+
+.hotel-details-modal {
+  @apply pointer-events-none fixed inset-0 z-50 hidden items-center justify-center p-4;
+}
+
+.hotel-details-modal:target {
+  @apply flex pointer-events-auto;
+}
+
+.hotel-details-backdrop {
+  @apply absolute inset-0 bg-slate-950/60 backdrop-blur-sm;
+}
+
+.hotel-details-card {
+  @apply relative z-10 w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900;
+}
