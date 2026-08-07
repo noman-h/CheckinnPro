@@ -1,22 +1,53 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Usetheme from '../Hooks/Usetheme';
 import { User, LogOut, Calendar, LogIn, UserPlus } from 'lucide-react';
 
 function Header() {
   const { theme, toggletheme } = Usetheme();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [authData, setAuthData] = useState(() => {
+    const email = localStorage.getItem('email');
+    const token = localStorage.getItem('token');
+    const role = localStorage.getItem('user');
+    const userId = localStorage.getItem('userid');
+    return {
+      isLoggedIn: !!(token || email),
+      userEmail: email || 'User Profile',
+      role: role || '',
+      userId: userId || ''
+    };
+  });
+
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  const userId = localStorage.getItem('userid');
-  const userEmail = localStorage.getItem('email') || 'User Profile';
-  const role = localStorage.getItem('user');
+  const syncAuth = () => {
+    const email = localStorage.getItem('email');
+    const token = localStorage.getItem('token');
+    const role = localStorage.getItem('user');
+    const userId = localStorage.getItem('userid');
+    setAuthData({
+      isLoggedIn: !!(token || email),
+      userEmail: email || 'User Profile',
+      role: role || '',
+      userId: userId || ''
+    });
+  };
 
   useEffect(() => {
-    setIsLoggedIn(!!userEmail);
-  }, [userId]);
+    syncAuth();
+  }, [location]);
+
+  useEffect(() => {
+    window.addEventListener('storage', syncAuth);
+    window.addEventListener('authChange', syncAuth);
+    return () => {
+      window.removeEventListener('storage', syncAuth);
+      window.removeEventListener('authChange', syncAuth);
+    };
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('userid');
@@ -24,21 +55,24 @@ function Header() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
 
-    setIsLoggedIn(false);
+    syncAuth();
+    window.dispatchEvent(new Event('authChange'));
     setIsDropdownOpen(false);
     navigate('/login');
   };
 
+  const { isLoggedIn, userEmail, role } = authData;
+
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/80 backdrop-blur transition-colors dark:border-slate-800 dark:bg-slate-950/80">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
+      <div className="flex h-16 w-full items-center justify-between px-4 sm:px-6 md:px-8 xl:px-12">
 
         {/* Logo */}
         <div
           onClick={() => navigate('/')}
           className="flex cursor-pointer items-center space-x-2 font-bold text-slate-900 dark:text-white"
         >
-          <span className="text-xl tracking-tight">StaySync</span>
+          <span className="text-xl tracking-tight">CheckInPro</span>
         </div>
 
         <nav className="flex items-center gap-3">
@@ -87,6 +121,13 @@ function Header() {
                     >
                       <LogOut size={16} />
                       Log Out
+                    </button>
+
+                    <button
+                      onClick={()=>navigate('/reset')}
+                      className="flex w-full items-center gap-2 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                    >
+                      Reset Password
                     </button>
                   </div>
                 )}

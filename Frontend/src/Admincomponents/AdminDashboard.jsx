@@ -38,19 +38,13 @@ function AdminDashboard() {
       );
       
       const responseData = result?.data?.response;
-
-      if (Array.isArray(responseData)) {
-        const allRooms = responseData.flatMap((hotel) => hotel.roomarray || []);
-        setroomdata(allRooms);
-      } else if (responseData && responseData.roomarray) {
-        setroomdata(responseData.roomarray);
-      } else {
-        setroomdata(Array.isArray(responseData) ? responseData : []);
-      }
+      setroomdata(Array.isArray(responseData) ? responseData : []);
     } catch (err) {
       console.log('Error fetching rooms:', err);
     }
   }
+
+  
 
   async function fetchbooking() {
     try {
@@ -234,7 +228,7 @@ function AdminDashboard() {
     });
 
     const occupiedRooms = roomdata.filter((room) =>
-      occupiedRoomIds.has(room._id?.toString())
+      occupiedRoomIds.has(room._id?.toString()) || room.isavailable === false
     ).length;
 
     const availableRooms = Math.max(0, totalRooms - occupiedRooms);
@@ -253,7 +247,7 @@ function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 text-slate-500 dark:bg-slate-950 dark:text-slate-400">
+      <div className="flex flex-col items-center justify-center py-20 text-slate-500 dark:text-slate-400">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 dark:border-indigo-400 mb-4"></div>
         <p className="text-sm font-medium">Loading Dashboard Data...</p>
       </div>
@@ -261,7 +255,7 @@ function AdminDashboard() {
   }
 
   return (
-    <div className="p-6 min-h-screen bg-slate-50 font-sans text-slate-800 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-200">
+    <div className="font-sans text-slate-800 dark:text-slate-100 transition-colors duration-200">
       
       {/* Header Section */}
       <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">

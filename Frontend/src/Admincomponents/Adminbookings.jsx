@@ -121,7 +121,7 @@ function Adminbookings() {
   const endItem = Math.min(currentPage * limit, totalBookings);
 
   return (
-    <div className="manage-page w-full rounded-xl bg-white p-4 text-slate-800 shadow-sm dark:bg-slate-900 dark:text-slate-100">
+    <div className="manage-page w-full p-4 text-slate-800 dark:text-slate-100">
       
       {/* --- TOP BAR: SEARCH, SORT & DATA LIMIT CONTROL --- */}
       <div className="flex w-full flex-col gap-3 pb-4 border-b border-slate-200 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
@@ -342,7 +342,7 @@ function Adminbookings() {
       {/* --- MODAL DIALOG --- */}
       {view && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="max-w-4xl w-full overflow-hidden rounded-2xl bg-white shadow-2xl dark:border dark:border-slate-700 dark:bg-slate-900">
+          <div className="max-w-4xl w-full max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl dark:border dark:border-slate-700 dark:bg-slate-900">
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-700">
               <h2 className="text-xl font-bold text-slate-800 dark:text-white">Booking Details</h2>
               <button

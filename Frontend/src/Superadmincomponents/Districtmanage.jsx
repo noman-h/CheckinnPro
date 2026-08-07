@@ -13,15 +13,21 @@ function Districtmanage() {
       const [status, setstatus] = useState("active");
       const [popup, setpopup] = useState("");
 
-    const [districtdata, setdistrictdata] = useState([]);
-    const [statedata, setstatedata] = useState([]);
-     
-    const [err,seterr]=useState({})
-    
+      const [districtdata, setdistrictdata] = useState([]);
+      const [statedata, setstatedata] = useState([]);
+       
+      const [err,seterr]=useState({})
+      
       const [districtd, setdistrictd] = useState({
         districtname: "",
         state_id: "",
       });
+
+      // --- PAGINATION STATES ---
+      const [currentPage, setCurrentPage] = useState(1);
+      const [limit, setLimit] = useState(6);
+      const [totalPages, setTotalPages] = useState(1);
+      const [totalDistricts, setTotalDistricts] = useState(0);
 
 
       async function fetchstates() {
@@ -38,16 +44,22 @@ function Districtmanage() {
     
 
     async function fetchdistricts() {
-    try {
-      const result = await axios.get(
-        `${import.meta.env.VITE_API_URL}/location/getalldistrict?search=${search}&&status=${(status==="active" ? true : false )}&&sort=${sort}&&statesort=${statesort}`,
-      );
+      try {
+        const skip = (currentPage - 1) * limit;
+        const result = await axios.get(
+          `${import.meta.env.VITE_API_URL}/location/getalldistrict?search=${debouncedsearch}&status=${(status==="active" ? true : false )}&sort=${sort}&statesort=${statesort}&skip=${skip}&limit=${limit}`,
+        );
+  
+        const responseData = result?.data?.response || [];
+        setdistrictdata(responseData);
 
-      setdistrictdata(result?.data?.response || []);
-    } catch (err) {
-      console.log(err);
+        const count = result?.data?.totalcount ?? responseData.length;
+        setTotalDistricts(count);
+        setTotalPages(Math.ceil(count / limit) || 1);
+      } catch (err) {
+        console.log(err);
+      }
     }
-  }
 
   async function handledistrictadd(e) {
         e.preventDefault();
@@ -151,9 +163,30 @@ function Districtmanage() {
     fetchstates()
   },[])
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedsearch, sort, statesort, status]);
+
   useEffect(()=>{
     fetchdistricts()
-  },[debouncedsearch,sort,statesort,status])
+  },[debouncedsearch,sort,statesort,status,currentPage,limit])
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      if (currentPage <= 3) pages.push(1, 2, 3, 4, '...', totalPages);
+      else if (currentPage >= totalPages - 2) pages.push(1, '...', totalPages-3, totalPages-2, totalPages-1, totalPages);
+      else pages.push(1, '...', currentPage-1, currentPage, currentPage+1, '...', totalPages);
+    }
+    return pages;
+  };
+
+  const startItem = totalDistricts === 0 ? 0 : (currentPage - 1) * limit + 1;
+  const endItem = Math.min(currentPage * limit, totalDistricts);
 
     function stateoption() {
     const fildata = statedata.filter((i) => i.activestatus === true);
@@ -330,6 +363,56 @@ function Districtmanage() {
     </div>
   )})}
 </div>}
+
+{/* --- PAGINATION CONTROLS --- */}
+{totalDistricts > 0 && (
+  <div className="mt-6 flex flex-col items-center justify-between gap-4 border-t border-slate-200 pt-4 dark:border-slate-800 sm:flex-row">
+    <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
+      <span>
+        Showing <strong className="text-slate-900 dark:text-white">{startItem}</strong> to{" "}
+        <strong className="text-slate-900 dark:text-white">{endItem}</strong> of{" "}
+        <strong className="text-slate-900 dark:text-white">{totalDistricts}</strong> districts
+      </span>
+      <div className="flex items-center gap-1.5">
+        <label className="text-xs">Show:</label>
+        <select
+          value={limit}
+          onChange={(e) => { setLimit(Number(e.target.value)); setCurrentPage(1); }}
+          className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+        >
+          <option value={4}>4</option>
+          <option value={6}>6</option>
+          <option value={10}>10</option>
+          <option value={20}>20</option>
+        </select>
+      </div>
+    </div>
+    <div className="flex flex-wrap items-center justify-center gap-1.5">
+      <button
+        onClick={() => setCurrentPage(p => Math.max(p-1,1))}
+        disabled={currentPage===1}
+        className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+      >Previous</button>
+      <div className="flex items-center gap-1">
+        {getPageNumbers().map((p,idx) =>
+          p==='...' ? (
+            <span key={`d${idx}`} className="px-1.5 text-xs text-slate-400">...</span>
+          ) : (
+            <button key={p} onClick={()=>setCurrentPage(p)}
+              className={`h-8 w-8 rounded-lg text-xs font-semibold transition ${
+                currentPage===p ? "bg-emerald-600 text-white shadow-sm" : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+              }`}>{p}</button>
+          )
+        )}
+      </div>
+      <button
+        onClick={() => setCurrentPage(p => Math.min(p+1,totalPages))}
+        disabled={currentPage===totalPages}
+        className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+      >Next</button>
+    </div>
+  </div>
+)}
 
 {view && (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">

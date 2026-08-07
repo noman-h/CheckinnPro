@@ -1,66 +1,78 @@
 import React from "react";
+import {
+  LayoutDashboard,
+  MapPin,
+  Map,
+  Building,
+  Building2,
+  ShieldCheck,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 
-function Sidebar({ setactivetab, activetab }) {
-  const menuClass = (tab) =>
-    `rounded-lg px-3 py-2.5 text-left text-sm font-medium transition
-    ${
-      activetab === tab
-        ? "bg-indigo-600 text-white shadow-md dark:bg-indigo-500 dark:text-white"
-        : "text-slate-600 hover:bg-indigo-50 hover:text-indigo-700 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-indigo-300"
-    }`;
+const navItems = [
+  { tab: "dashboard", label: "Dashboard",  icon: LayoutDashboard },
+  { tab: "states",    label: "States",     icon: Map },
+  { tab: "districts", label: "Districts",  icon: MapPin },
+  { tab: "city",      label: "Cities",     icon: Building },
+  { tab: "admins",    label: "Admins",     icon: ShieldCheck },
+  { tab: "hotels",    label: "Hotels",     icon: Building2 },
+];
 
+function Sidebar({ setactivetab, activetab, collapsed, onToggle }) {
   return (
-    <aside className="flex h-full w-60 shrink-0 flex-col overflow-y-auto border-r border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-      <div className="mb-8 border-b border-slate-200 px-3 pb-5 dark:border-slate-800">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600 dark:text-indigo-400">
-          Hotel Super Admin
-        </p>
-        <h2 className="mt-1 text-lg font-bold text-slate-950 dark:text-white">
-          Management
-        </h2>
+    <aside
+      className={`sidebar-base ${collapsed ? "sidebar-collapsed" : "sidebar-expanded"} p-3`}
+    >
+      {/* Brand */}
+      <div
+        className={`mb-6 flex items-center border-b border-slate-200 pb-4 dark:border-slate-800 ${
+          collapsed ? "justify-center px-0" : "justify-between px-1"
+        }`}
+      >
+        {!collapsed && (
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600 dark:text-indigo-400">
+              Super Admin
+            </p>
+            <h2 className="mt-0.5 text-base font-bold text-slate-950 dark:text-white">
+              Management
+            </h2>
+          </div>
+        )}
+
+        <button
+          onClick={onToggle}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className="hidden rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 lg:flex"
+        >
+          {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+        </button>
       </div>
 
+      {/* Nav */}
       <nav className="flex flex-col gap-1">
-        <button
-          className={menuClass("dashboard")}
-          onClick={() => setactivetab("dashboard")}
-        >
-          Dashboard
-        </button>
-        <button
-          className={menuClass("states")}
-          onClick={() => setactivetab("states")}
-        >
-          States
-        </button>
+        {navItems.map(({ tab, label, icon: Icon }) => {
+          const isActive = activetab === tab;
+          return (
+            <div key={tab} className="group relative">
+              <button
+                onClick={() => setactivetab(tab)}
+                title={collapsed ? label : undefined}
+                className={`sidebar-item ${
+                  isActive ? "sidebar-item-active" : "sidebar-item-inactive"
+                } ${collapsed ? "justify-center px-0" : ""}`}
+              >
+                <Icon size={18} className="shrink-0" />
+                {!collapsed && <span>{label}</span>}
+              </button>
 
-        <button
-          className={menuClass("districts")}
-          onClick={() => setactivetab("districts")}
-        >
-          Districts
-        </button>
-
-        <button
-          className={menuClass("city")}
-          onClick={() => setactivetab("city")}
-        >
-          Cities
-        </button>
-
-        <button
-          className={menuClass("admins")}
-          onClick={() => setactivetab("admins")}
-        >
-          Admins
-        </button>
-
-        <button
-          className={menuClass("hotels")}
-          onClick={() => setactivetab("hotels")}
-        >
-          Hotels
-        </button>
+              {collapsed && (
+                <span className="sidebar-tooltip">{label}</span>
+              )}
+            </div>
+          );
+        })}
       </nav>
     </aside>
   );

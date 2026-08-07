@@ -45,7 +45,8 @@ exports.cityupdate=async (req,res)=>{
 exports.cityreadall=async (req,res)=>{
     try{
         
- const {search,status,sort,districtsort}=req.query
+ const {search,status,sort,districtsort,skip,limit}=req.query
+ const searchVal = search || ""
  const cityPipeline = [];
 
 // status 
@@ -56,11 +57,11 @@ exports.cityreadall=async (req,res)=>{
 }
 
 // Search by city name
-if (search) {
+if (searchVal) {
   cityPipeline.push({
     $match: {
       cityname: {
-        $regex: search,
+        $regex: searchVal,
         $options: "i"
       }
     }
@@ -109,7 +110,7 @@ districtPipeline.push({
       "allcities.0": { $exists: true }
     }});
 
-     const response=await states.aggregate([
+const basePipeline = [
   {
     $match: { activestatus: true}
     },
@@ -125,9 +126,18 @@ districtPipeline.push({
   {$match: {
       "alldistricts.0": { $exists: true }
     }}
-]);
+];
 
-     return res.status(200).json({response})
+const countResult = await states.aggregate([...basePipeline, { $count: "totalcount" }]);
+const totalcount = countResult[0]?.totalcount || 0;
+
+const pipeline = [...basePipeline];
+if (skip) pipeline.push({ $skip: parseInt(skip) });
+if (limit) pipeline.push({ $limit: parseInt(limit) });
+
+const response = await states.aggregate(pipeline);
+
+ return res.status(200).json({response, totalcount})
     }
     catch(err){
         console.log(err);

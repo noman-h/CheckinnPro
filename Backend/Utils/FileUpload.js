@@ -2,7 +2,8 @@ const { json } = require('express');
 
 const cloudinary = require('cloudinary').v2;
 
-const config=JSON.parse(process.env.cloudnaryconfig)
+cloudinary.config(JSON.parse(process.env.cloudnaryconfig));
+
 
 exports.uploadimage = async (files) => { 
   const fileArray = Object.values(files); // Convert files object to an array
@@ -31,6 +32,6 @@ exports.uploadimage = async (files) => {
       console.error('Error uploading file:', error); // Log the error if upload fails
     }
   }
-
+ 
   return results; // Return the list of upload results
 };

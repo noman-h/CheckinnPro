@@ -62,6 +62,8 @@ function Login() {
             localStorage.setItem('userid',result?.data?.user?._id)
             navigate('/')
           }
+
+          window.dispatchEvent(new Event('authChange'));
           
           alert("logined successfully");
              setlogind({

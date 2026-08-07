@@ -48,7 +48,8 @@ exports.districtupdate=async (req,res)=>{
 
 exports.districtreadall=async (req,res)=>{  
     try{
-    const {search,sort,status,statesort}=req.query
+    const {search,sort,status,statesort,skip,limit}=req.query
+    const searchVal = search || "";
     
     let statefilter={}
     if(statesort){
@@ -63,40 +64,49 @@ exports.districtreadall=async (req,res)=>{
         else if(sort==='newest') sorting={createdAt:1}
         else if(sort==='oldest') sorting={createdAt:-1}
 
-const response = await states.aggregate([
-  {
-    $match: statefilter
-  },
-  {
-    $lookup: {
-      from: "districts",
-      let: { stateId: "$_id" },
-      pipeline: [
-        {
-          $match: {
-            $expr: {
-              $eq: ["$state_id", "$$stateId"]
+    const basePipeline = [
+      {
+        $match: statefilter
+      },
+      {
+        $lookup: {
+          from: "districts",
+          let: { stateId: "$_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: ["$state_id", "$$stateId"]
+                },
+                districtname: {
+                  $regex: searchVal,
+                  $options: "i"
+                },
+                activestatus: (status==="true" ? true : false)
+              }
             },
-            districtname: {
-              $regex: search,
-              $options: "i"
-            },
-            activestatus: (status==="true" ? true : false)
-          }
-        },
-        ...(sorting) ? [{$sort:sorting}] : []
-      ],
-      as: "alldistricts"
-    }
-  },
-  {
-    $match: {
-      "alldistricts.0": { $exists: true }
-    }
-  }
-]);
+            ...(sorting) ? [{$sort:sorting}] : []
+          ],
+          as: "alldistricts"
+        }
+      },
+      {
+        $match: {
+          "alldistricts.0": { $exists: true }
+        }
+      }
+    ];
+
+    const countResult = await states.aggregate([...basePipeline, { $count: "totalcount" }]);
+    const totalcount = countResult[0]?.totalcount || 0;
+
+    const pipeline = [...basePipeline];
+    if (skip) pipeline.push({ $skip: parseInt(skip) });
+    if (limit) pipeline.push({ $limit: parseInt(limit) });
+
+    const response = await states.aggregate(pipeline);
     
-     return res.status(200).json({response})
+     return res.status(200).json({response, totalcount})
     }
     catch(err){
         console.log(err);

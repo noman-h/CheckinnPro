@@ -145,7 +145,7 @@ exports.roomreadall = async (req, res) => {
 
 exports.roomreadhotelall = async (req, res) => {
   try {
-    const { search, status } = req.query;
+    const { search, status, skip, limit } = req.query;
 
     const { hotelEmail } = req.params;
 
@@ -154,20 +154,27 @@ exports.roomreadhotelall = async (req, res) => {
       return res.status(404).json({ message: "hotel not found" });
     }
 
-    const response = await rooms
-      .find({
-        hotel_id: hotel._id,
-        activestatus: status === "active" ? true : false,
-        $or: [
-          { roomno: { $regex: search, $options: "i" } },
-          { roomtype: { $regex: search, $options: "i" } },
-        ],
-      })
-      .populate("hotel_id");
-    return res.status(200).json({ response });
+    const matchQuery = {
+      hotel_id: hotel._id,
+      activestatus: status === "active" ? true : false,
+      $or: [
+        { roomno: { $regex: search || "", $options: "i" } },
+        { roomtype: { $regex: search || "", $options: "i" } },
+      ],
+    };
+
+    const totalcount = await rooms.countDocuments(matchQuery);
+
+    let query = rooms.find(matchQuery).populate("hotel_id").sort({ createdAt: -1 });
+
+    if (skip) query = query.skip(parseInt(skip));
+    if (limit) query = query.limit(parseInt(limit));
+
+    const response = await query;
+
+    return res.status(200).json({ response, totalcount });
   } catch (err) {
     console.log(err);
-
     return res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -175,7 +182,7 @@ exports.roomreadhotelall = async (req, res) => {
 exports.roomreadadminhotelall = async (req, res) => {
   try {
     const { search, status, sort ,limit ,skip } = req.query;
-    console.log(req.query);
+
     
     const { adminemail } = req.params;
 
@@ -187,56 +194,30 @@ exports.roomreadadminhotelall = async (req, res) => {
 
     if (sort) { hotelMatch._id = new mongoose.Types.ObjectId(sort); }
 
-    const roompipeline=[
-            {
-              $match: {
-                activestatus: (status==="active") ? true : false,
-                $expr: { $eq: ["$hotel_id", "$$hotelId"] },
-                ...(search && {
-                  $or: [
-                    { roomtype: { $regex: search, $options: "i" } },
-                    { roomno: { $regex: search, $options: "i" } },
-                  ],
-                }),
-              },
-            }
-          ]
-      
-    const hotelpipeline=[
-      { $match: hotelMatch },
-      {
-        $lookup: {
-          from: "rooms",
-          let: { hotelId: "$_id" },
-          pipeline: roompipeline,
-          as: "roomarray",
-        },
-      },
-      { $match: { "roomarray.0": { $exists: true } } },
-    ]   
-    
-    const roomCountPipeline = [
-  { $match: hotelMatch },
-  {
-    $lookup: {
-      from: "rooms",
-      let: { hotelId: "$_id" },
-      pipeline: roompipeline,
-      as: "roomarray",
-    },
-  },
-  { $unwind: "$roomarray" },
-  { $count: "totalRooms" }
-];
+    const adminHotels = await hotels.find(hotelMatch).select("_id");
+    const hotelIds = adminHotels.map(h => h._id);
 
-    const countResult = await hotels.aggregate(roomCountPipeline);
-    const totalCount = countResult[0]?.totalRooms || 0;
+    const roomMatch = {
+      hotel_id: { $in: hotelIds },
+      activestatus: status === "active" ? true : false,
+    };
 
-    if(skip)  roompipeline.push({$skip:parseInt(skip)})
-    if(limit) roompipeline.push({$limit:parseInt(limit)})
+    if (search) {
+      roomMatch.$or = [
+        { roomtype: { $regex: search, $options: "i" } },
+        { roomno: { $regex: search, $options: "i" } },
+      ];
+    }
 
-    const response = await hotels.aggregate(hotelpipeline);
-    return res.status(200).json({ response,totalCount });
+    const totalCount = await rooms.countDocuments(roomMatch);
+
+    let query = rooms.find(roomMatch).populate("hotel_id").sort({ createdAt: -1 });
+
+    if (skip) query = query.skip(parseInt(skip));
+    if (limit) query = query.limit(parseInt(limit));
+
+    const response = await query;
+    return res.status(200).json({ response, totalCount });
   } catch (err) {
     console.log(err);
 

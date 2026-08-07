@@ -68,7 +68,8 @@ exports.coupanreadall=async (req,res)=>{
 
 exports.coupanreadalladmin=async (req,res)=>{
     try{
-     const {search,status,sort,hotelsort}=req.query   
+     const {status,sort,hotelsort,skip,limit}=req.query
+     const search = req.query.search || ""
      const {owneremail}=req.params
      
      const admin=await admins.findOne({owneremail})
@@ -84,12 +85,12 @@ exports.coupanreadalladmin=async (req,res)=>{
      }
 
     let sortdata=null     
-    if(sort==="az") sortdata={coupancode:-1}
+    if(sort==="az") sortdata={coupancode:1}
     else if(sort==="za") sortdata={coupancode:-1}
     else if(sort==="newest")  sortdata={startdate:-1}
     else if(sort==="oldest")  sortdata={startdate:1}
 
-     const response=await coupans.aggregate([
+     const basePipeline=[
         {$lookup:{
         from:"hotels",
         localField:"hotel_id",
@@ -103,15 +104,24 @@ exports.coupanreadalladmin=async (req,res)=>{
         $or:[
             {coupancode:{$regex:search ,$options:"i"}},
             {"hoteldata.hotelName":{$regex:search ,$options:"i"}}
-        ]
-     }},
-     ...(sortdata) ? [{$sort:sortdata}] : []
-    ])
-     return res.status(200).json({response})
+        ],
+        ...hotelfilter
+     }}
+    ]
+
+     const countresult=await coupans.aggregate([...basePipeline,{$count:'totalcount'}])
+     const totalcount=countresult[0]?.totalcount || 0;
+
+     const pipeline=[...basePipeline]
+     if(sortdata) pipeline.push({$sort:sortdata})
+     if(skip) pipeline.push({$skip:parseInt(skip)})
+     if(limit) pipeline.push({$limit:parseInt(limit)})
+
+     const response=await coupans.aggregate(pipeline)
+     return res.status(200).json({response,totalcount})
     }
     catch(err){
         console.log(err);
-        
         return res.status(500).json({message:"internal server error"})
     }
 }

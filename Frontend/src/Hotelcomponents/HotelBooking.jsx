@@ -15,14 +15,28 @@ function HotelBooking() {
    
     const [bookingdata,setbookingdata]=useState([])
     const [view,setview]=useState(null)
+
+    // --- PAGINATION STATES ---
+    const [currentPage, setCurrentPage] = useState(1);
+    const [limit, setLimit] = useState(6);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalBookings, setTotalBookings] = useState(0);
+
     async function fetchbooking() {
         try{
+          const skip = (currentPage - 1) * limit;
           const result = await axios.get(
-            `${import.meta.env.VITE_API_URL}/booking/hotelbooking/${hotelemail}?search=${search}&&sort=${sort}`)
-           setbookingdata(result?.data?.response)
+            `${import.meta.env.VITE_API_URL}/booking/hotelbooking/${hotelemail}?search=${debouncedvalue}&sort=${sort}&page=${currentPage}&limit=${limit}&skip=${skip}`)
+           
+           const responseData = result?.data?.response || [];
+           setbookingdata(responseData)
+
+           const count = result?.data?.totalcount ?? responseData.length;
+           setTotalBookings(count);
+           setTotalPages(Math.ceil(count / limit) || 1);
         }
         catch(err){
-       console.log(err);
+           console.log(err);
         }
     }
 
@@ -74,9 +88,33 @@ function HotelBooking() {
    
    
 
+    // Reset to page 1 whenever search or sort filters change
+    useEffect(() => {
+      setCurrentPage(1);
+    }, [debouncedvalue, sort]);
+
     useEffect(()=>{
      fetchbooking()
-    },[debouncedvalue,sort])
+    },[debouncedvalue, sort, currentPage, limit])
+
+    // --- PAGE NUMBERS GENERATOR ---
+    const getPageNumbers = () => {
+      const pages = [];
+      const maxVisiblePages = 5;
+
+      if (totalPages <= maxVisiblePages) {
+        for (let i = 1; i <= totalPages; i++) pages.push(i);
+      } else {
+        if (currentPage <= 3) {
+          pages.push(1, 2, 3, 4, '...', totalPages);
+        } else if (currentPage >= totalPages - 2) {
+          pages.push(1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+        } else {
+          pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
+        }
+      }
+      return pages;
+    };
 
   console.log(bookingdata);
   
@@ -86,17 +124,17 @@ function HotelBooking() {
 
 
   return (
-   <div className="manage-page w-full rounded-xl bg-white p-3 text-slate-800 shadow-sm dark:bg-slate-900 dark:text-slate-100">
-          <div className="flex w-full flex-col gap-3 pb-3 lg:flex-row lg:items-center lg:justify-between">
+   <div className="manage-page w-full p-3 text-slate-800 dark:text-slate-100">
+          <div className="flex w-full flex-col gap-3 pb-3">
          
-            <div className="flex  gap-2">
+            <div className="flex flex-wrap gap-2">
 
               <input
                 type="text"
                 placeholder="Search by room and hotels..."
                 value={search}
                 onChange={(e) => setsearch(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-emerald-900 sm:max-w-xs"
+                className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-emerald-900 sm:max-w-xs"
               />
 
               <select
@@ -108,7 +146,6 @@ function HotelBooking() {
                 <option value="newest">New booking</option>
                 <option value="oldest">Old booking</option>
               </select>
-              
             </div>
           </div>
 
@@ -241,6 +278,78 @@ function HotelBooking() {
     })
   )}
 </div>
+
+{/* --- PAGINATION CONTROLS --- */}
+{totalBookings > 0 && (
+  <div className="mt-6 flex flex-col items-center justify-between gap-4 border-t border-slate-200 pt-4 dark:border-slate-800 sm:flex-row">
+    
+    {/* Left Side: Items Count & Limit Selector */}
+    <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
+      <span>
+        Showing <strong className="text-slate-900 dark:text-white">{(currentPage - 1) * limit + 1}</strong> to{" "}
+        <strong className="text-slate-900 dark:text-white">{Math.min(currentPage * limit, totalBookings)}</strong> of{" "}
+        <strong className="text-slate-900 dark:text-white">{totalBookings}</strong> entries
+      </span>
+
+      <div className="flex items-center gap-1.5">
+        <label htmlFor="limit-select">Show:</label>
+        <select
+          id="limit-select"
+          value={limit}
+          onChange={(e) => {
+            setLimit(Number(e.target.value));
+            setCurrentPage(1);
+          }}
+          className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+        >
+          <option value={4}>4</option>
+          <option value={6}>6</option>
+          <option value={10}>10</option>
+          <option value={20}>20</option>
+        </select>
+      </div>
+    </div>
+
+    {/* Right Side: Navigation Buttons */}
+    <div className="flex flex-wrap items-center justify-center gap-1.5">
+      <button
+        onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+        disabled={currentPage === 1}
+        className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+      >
+        Previous
+      </button>
+
+      <div className="flex items-center gap-1">
+        {getPageNumbers().map((pageNum, idx) =>
+          pageNum === '...' ? (
+            <span key={`dots-${idx}`} className="px-1.5 text-xs text-slate-400">...</span>
+          ) : (
+            <button
+              key={pageNum}
+              onClick={() => setCurrentPage(pageNum)}
+              className={`h-8 w-8 rounded-lg text-xs font-semibold transition ${
+                currentPage === pageNum
+                  ? "bg-emerald-600 text-white shadow-sm"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+              }`}
+            >
+              {pageNum}
+            </button>
+          )
+        )}
+      </div>
+
+      <button
+        onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+        disabled={currentPage === totalPages}
+        className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+      >
+        Next
+      </button>
+    </div>
+  </div>
+)}
 
 
     {view  && (

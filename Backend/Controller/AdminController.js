@@ -5,7 +5,7 @@ const bcrypt = require("bcrypt");
 const { v4: uuidv4 } = require("uuid");
 const mongoose = require("mongoose");
 
-const { uploadimage } = require("../Utils/fileupload");
+const { uploadimage } = require('../Utils/FileUpload');
 const moment = require("moment");
 
 const HtmlTemplate = require("../Utils/HtmlTemplate");
@@ -13,14 +13,14 @@ const sendmail = require("../Utils/Helper");
 const AdminModel = require("../Model/AdminModel");
 exports.adminadd = async (req, res) => {
   try {
-    const {ownername, owneremail, ownerphone, address, cityId } =
+    const { ownername, owneremail, ownerphone, address, cityId } =
       req.body;
-  
-    
+
+
     if (!(ownername && owneremail && ownerphone && address && cityId)) {
       return res.status(404).json({ message: "all keys are required" });
     }
-    const existing = await admins.findOne({ owneremail,approveStatus:"approved" });
+    const existing = await admins.findOne({ owneremail, approveStatus: "approved" });
     if (existing) {
       return res.status(409).json({ message: "admin already exist" });
     }
@@ -45,7 +45,7 @@ exports.adminadd = async (req, res) => {
     if (emailid) {
       const data = req.body;
 
-      const response = await admins.findOneAndUpdate({owneremail},{
+      const response = await admins.findOneAndUpdate({ owneremail }, {
         ...data,
         checkid,
         profileImage: urlprofile,
@@ -71,8 +71,8 @@ exports.adminupdate = async (req, res) => {
     const { _id, ownername, owneremail, ownerphone, address, cityId } =
       req.body;
     console.log(req.body);
-    
-      
+
+
     if (!(_id && ownername && owneremail && ownerphone && address && cityId)) {
       return res.status(404).json({ message: "all keys are required" });
     }
@@ -93,7 +93,7 @@ exports.adminupdate = async (req, res) => {
     const data = req.body;
     const response = await admins.findByIdAndUpdate(_id, {
       ...data,
-      otp:null,
+      otp: null,
       profileImage: urlprofile,
       aadhaarFront: urlaadharfront,
       aadhaarBack: urlaadharback,
@@ -108,10 +108,48 @@ exports.adminupdate = async (req, res) => {
 
 exports.adminreadall = async (req, res) => {
   try {
-    const response = await admins.find().populate("cityId");
-    return res.status(200).json({ response });
-  } catch (err) {
+    const { search, sort, status, skip, limit } = req.query;
+    const searchVal = search || "";
 
+    let matchQuery = {};
+    if (status === "active") {
+      matchQuery.activeStatus = true;
+    } else if (status === "inactive") {
+      matchQuery.activeStatus = false;
+      matchQuery.approveStatus = "approved";
+    } else if (status === "pending") {
+      matchQuery.approveStatus = "pending";
+    } else if (status === "rejected") {
+      matchQuery.approveStatus = "rejected";
+    }
+
+    if (searchVal) {
+      matchQuery.$or = [
+        { ownername: { $regex: searchVal, $options: "i" } },
+        { owneremail: { $regex: searchVal, $options: "i" } },
+        { ownerphone: { $regex: searchVal, $options: "i" } }
+      ];
+    }
+
+    let sorting = null;
+    if (sort === "az") sorting = { ownername: 1 };
+    else if (sort === "za") sorting = { ownername: -1 };
+    else if (sort === "newest") sorting = { createdAt: -1 };
+    else if (sort === "oldest") sorting = { createdAt: 1 };
+
+    const totalcount = await admins.countDocuments(matchQuery);
+
+    let query = admins.find(matchQuery).populate("cityId");
+    if (sorting) query = query.sort(sorting);
+    else query = query.sort({ createdAt: -1 });
+
+    if (skip) query = query.skip(parseInt(skip));
+    if (limit) query = query.limit(parseInt(limit));
+
+    const response = await query;
+    return res.status(200).json({ response, totalcount });
+  } catch (err) {
+    console.log(err);
     return res.status(500).json({ message: "internal server error" });
   }
 };
@@ -183,7 +221,7 @@ exports.adminrecoverdelete = async (req, res) => {
   }
 };
 
-const password =uuidv4()
+const password = uuidv4()
 exports.adminapprove = async (req, res) => {
   try {
     const { _id, ownername, owneremail } = req.body;
@@ -226,7 +264,7 @@ exports.adminapprove = async (req, res) => {
     return res.status(200).json({ message: "approval updated" });
   } catch (err) {
     console.log(err);
-    
+
     return res.status(500).json({ message: "internal server error" });
   }
 };
@@ -263,8 +301,8 @@ exports.adminreject = async (req, res) => {
 exports.emailotpsend = async (req, res) => {
   try {
     const { email } = req.body;
-   
-    if (!email) {      
+
+    if (!email) {
       return res.status(404).json({ message: "all keys are required" });
     }
 
@@ -274,23 +312,25 @@ exports.emailotpsend = async (req, res) => {
     const otpgen = require("../Utils/otpgen");
     const otp = otpgen();
 
-    const existing = await admins.findOne({ owneremail:email });
+    const existing = await admins.findOne({ owneremail: email });
     if (!existing) {
-         const admin=new AdminModel({owneremail:email,
+      const admin = new AdminModel({
+        owneremail: email,
         otp: otp,
-        expiretime: moment().add(10, "minutes")})
-    const saveotp =await admin.save({validateBeforeSave:false})
+        expiretime: moment().add(10, "minutes")
+      })
+      const saveotp = await admin.save({ validateBeforeSave: false })
     }
-    else{
-       const saveotp = await admins.findOneAndUpdate(
-      { owneremail: email },
-      {
-        otp: otp,
-        expiretime: moment().add(10, "minutes"),
-      },
-    );
+    else {
+      const saveotp = await admins.findOneAndUpdate(
+        { owneremail: email },
+        {
+          otp: otp,
+          expiretime: moment().add(10, "minutes"),
+        },
+      );
     }
-   
+
 
     const mailid = await sendmail.mailsend(
       email,
@@ -355,8 +395,8 @@ exports.updateotpsend = async (req, res) => {
 exports.updateotpverify = async (req, res) => {
   try {
     const { email, otp } = req.body;
-   console.log(req.body);
-   
+    console.log(req.body);
+
     if (!(email && otp)) {
       return res.status(404).json({ message: "all keys are required" });
     }
@@ -396,10 +436,10 @@ exports.updateotpverify = async (req, res) => {
 
 exports.directadminadd = async (req, res) => {
   try {
-    const {ownername, owneremail, ownerphone, address, cityId } =
+    const { ownername, owneremail, ownerphone, address, cityId } =
       req.body;
-   
-    
+
+
     if (!(ownername && owneremail && ownerphone && address && cityId)) {
       return res.status(404).json({ message: "all keys are required" });
     }
@@ -442,19 +482,19 @@ exports.directadminadd = async (req, res) => {
       });
 
       const saltrounds = 10;
-    const salt = bcrypt.genSaltSync(saltrounds);
-    const hashpass = bcrypt.hashSync(password, salt);
+      const salt = bcrypt.genSaltSync(saltrounds);
+      const hashpass = bcrypt.hashSync(password, salt);
 
-    const user = new users({
-      name: ownername,
-      email: owneremail,
-      password: hashpass,
-      role: "admin",
-    });
+      const user = new users({
+        name: ownername,
+        email: owneremail,
+        password: hashpass,
+        role: "admin",
+      });
 
-    await user.save();
+      await user.save();
 
-    return res.status(201).json({ message: "admin added successfully" });
+      return res.status(201).json({ message: "admin added successfully" });
     }
 
     return res

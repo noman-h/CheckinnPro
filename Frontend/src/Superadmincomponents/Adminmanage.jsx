@@ -1,27 +1,42 @@
 import axios from 'axios';
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import UseDebouncing from '../Hooks/UseDebouncing';
 
 function Adminmanage() {
 
     const navigate=useNavigate()
-    const [status, setstatus] = useState("active");
+    const [status, setstatus] = useState("pending"); // Defaulting to pending to match Superadmin initial tab
+    const [search, setsearch] = useState("");
+    const [sort, setsort] = useState("");
 
+    const debouncedsearch = UseDebouncing(search, 1000);
     
-      const [admindata, setadmindata] = useState([]);
+    // --- PAGINATION STATES ---
+    const [currentPage, setCurrentPage] = useState(1);
+    const [limit, setLimit] = useState(6);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalAdmins, setTotalAdmins] = useState(0);
 
-    
-      async function fetchadmins() {
-        try {
-          const result = await axios.get(
-            `${import.meta.env.VITE_API_URL}/admin/getalladmins`,
-          );
-    
-          setadmindata(result?.data?.response || []);
-        } catch (err) {
-          console.log(err);
-        }
+    const [admindata, setadmindata] = useState([]);
+
+    async function fetchadmins() {
+      try {
+        const skip = (currentPage - 1) * limit;
+        const result = await axios.get(
+          `${import.meta.env.VITE_API_URL}/admin/getalladmins?search=${debouncedsearch}&sort=${sort}&status=${status}&skip=${skip}&limit=${limit}`,
+        );
+  
+        const responseData = result?.data?.response || [];
+        setadmindata(responseData);
+
+        const count = result?.data?.totalcount ?? responseData.length;
+        setTotalAdmins(count);
+        setTotalPages(Math.ceil(count / limit) || 1);
+      } catch (err) {
+        console.log(err);
       }
+    }
     
 
   async function handledeactivate(id){
@@ -124,19 +139,32 @@ function Adminmanage() {
      console.log(view);
      
 
-      useEffect(()=>{
-         fetchadmins()
-      },[])
+    // Reset to page 1 when filters change
+    useEffect(() => {
+      setCurrentPage(1);
+    }, [debouncedsearch, sort, status]);
 
-    // states filtered by their own activestatus
-  const filteredadmin = admindata.filter((i) =>
-  {
-    if(status === "active") return  i.activeStatus === true 
-    if(status === "inactive") return (i.activeStatus === false && i.approveStatus==="approved")
-    if(status === "pending") return i.approveStatus==="pending"
-    if(status === "rejected") return i.approveStatus==="rejected"
-  }
-  );
+    useEffect(()=>{
+       fetchadmins()
+    },[debouncedsearch, sort, status, currentPage, limit])
+
+    const getPageNumbers = () => {
+      const pages = [];
+      const maxVisible = 5;
+      if (totalPages <= maxVisible) {
+        for (let i = 1; i <= totalPages; i++) pages.push(i);
+      } else {
+        if (currentPage <= 3) pages.push(1, 2, 3, 4, '...', totalPages);
+        else if (currentPage >= totalPages - 2) pages.push(1, '...', totalPages-3, totalPages-2, totalPages-1, totalPages);
+        else pages.push(1, '...', currentPage-1, currentPage, currentPage+1, '...', totalPages);
+      }
+      return pages;
+    };
+
+    const startItem = totalAdmins === 0 ? 0 : (currentPage - 1) * limit + 1;
+    const endItem = Math.min(currentPage * limit, totalAdmins);
+
+    const filteredadmin = admindata;
 
   console.log(admindata);
   
@@ -176,7 +204,7 @@ function Adminmanage() {
               >
                 Active
               </button>
-              <button
+               <button
                 className={`px-3 py-1.5 rounded-md text-sm font-medium ${
                   status === "inactive"
                     ? "bg-slate-900 text-white shadow-sm dark:bg-slate-100 dark:text-slate-900"
@@ -186,7 +214,26 @@ function Adminmanage() {
               >
                 Inactive
               </button>
-              
+
+              <input
+                type="text"
+                placeholder="Search admins..."
+                value={search}
+                onChange={(e) => setsearch(e.target.value)}
+                className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-emerald-900 sm:max-w-xs"
+              />
+
+              <select
+                value={sort}
+                onChange={(e) => setsort(e.target.value)}
+                className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-emerald-900"
+              >
+                <option value="">No sorting</option>
+                <option value="az">A → Z</option>
+                <option value="za">Z → A</option>
+                <option value="newest">Newest</option>
+                <option value="oldest">Oldest</option>
+              </select>
             </div>
             <button
               className="rounded-xl bg-linear-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
@@ -196,92 +243,204 @@ function Adminmanage() {
             </button>
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
-            <table className="w-full min-w-230 text-left text-sm">
-              <thead className="bg-slate-50 text-slate-600 uppercase text-xs dark:bg-slate-800 dark:text-slate-300">
-                <tr>
-                  <th className="px-4 py-2">#</th>
-                  <th className="px-4 py-2">Admin</th>
-                  <th className="px-4 py-2">Contact</th>
-                  <th className="px-4 py-2">City</th>
-                  <th className="px-4 py-2">Approval status</th>
-                  <th className="px-4 py-2 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredadmin.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-slate-400 dark:text-slate-500">
-                      No data found
-                    </td>
-                  </tr>
-                ) : (
-                  filteredadmin.map((item, idx) => (
-                    <tr key={item._id} className="border-t border-slate-100 transition-colors hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/70">
-                      <td className="px-4 py-2 text-slate-400 dark:text-slate-500">{idx + 1}</td>
-                      <td className="px-4 py-2 font-medium text-slate-800 dark:text-slate-100">
-                        <p>{item.ownername}</p>
-                        <p className="mt-0.5 text-xs font-normal text-slate-500 dark:text-slate-400">{item.Address}</p>
-                      </td>
-                      <td className="px-4 py-2 text-slate-600 dark:text-slate-300">
-                        <p>{item.owneremail}</p>
-                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{item.hotelPhone}</p>
-                      </td>
-                      <td className="px-4 py-2 text-slate-600 dark:text-slate-300">
-                        {item.cityId?.cityname || "—"}
-                      </td>
-                      <td className="px-4 py-2">
-                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
-                          item.approveStatus === "approved"
-                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
-                            : item.approveStatus === "rejected"
-                              ? "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
-                              : "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
-                        }`}>
-                          {item.approveStatus || "pending"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2">
-                        <div className="flex justify-end gap-2">
-                          <button className="rounded-md px-2 py-1 font-medium text-sky-600 hover:bg-sky-50 hover:text-sky-700 dark:text-sky-400 dark:hover:bg-slate-800" onClick={()=>handleview(item._id)}>View</button>
-                          {(item.approveStatus==="pending") && 
-                          <div>
-                            <button className="rounded-md px-2 py-1 font-medium text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-slate-800" onClick={()=>handleapprove(item)}>Approve</button>
-                         <button className="rounded-md px-2 py-1 font-medium text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-slate-800" onClick={()=>{setreasonpopup(true) 
-                           setReason({...Reason,item:item})
-                          }}>reject</button>
-                          </div>
-                           }
-                          {item.activeStatus===true && (
-                            <>
-                              <button className="rounded-md px-2 py-1 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:text-amber-400 dark:hover:bg-slate-800"
-                              onClick={()=>handledeactivate(item._id)}>
-                                Deactivate
-                              </button>
-                            
-                            </>
-                          )} {(item.activeStatus===false && item.approveStatus==="approved" )&& (
-                            <>
-                              <button className="rounded-md px-2 py-1 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-slate-800" onClick={()=>handlerestore(item._id)}>
-                                Restore
-                              </button>
-                              
-                            </>
-                            
-                          )}
-                            <button className="rounded-md px-2 py-1 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-slate-800"
-                               onClick={()=>handledelete(item._id)}>
-                                Delete
-                              </button>
-                        </div>
-                       
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+  {filteredadmin.length === 0 ? (
+    <div className="col-span-full rounded-xl border border-dashed border-slate-300 py-10 text-center text-slate-400 dark:border-slate-700">
+      No admins found
+    </div>
+  ) : (
+    filteredadmin.map((item) => (
+      <div
+        key={item._id}
+        className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-lg dark:border-slate-700 dark:bg-slate-900"
+      >
+        <div className="flex flex-col sm:flex-row h-full">
+
+          {/* Admin Image (if available, fallback if not) */}
+          <div className="sm:w-48 shrink-0">
+            {item.profileImage ? (
+              <img
+                src={item.profileImage}
+                alt={item.ownername}
+                className="h-48 w-full object-cover sm:h-full"
+              />
+            ) : (
+              <div className="flex h-48 w-full items-center justify-center bg-slate-100 text-slate-400 dark:bg-slate-800 sm:h-full">
+                No Image
+              </div>
+            )}
           </div>
+
+          {/* Details */}
+          <div className="flex flex-1 flex-col justify-between p-5">
+
+            <div>
+
+              <div className="flex items-start justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-800 dark:text-white">
+                    {item.ownername}
+                  </h2>
+                  <p className="mt-0.5 text-sm font-medium text-indigo-600 dark:text-indigo-400">
+                    City: {item.cityId?.cityname || "—"}
+                  </p>
+                </div>
+
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                    item.approveStatus === "approved"
+                      ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                      : item.approveStatus === "pending"
+                      ? "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
+                      : "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
+                  }`}
+                >
+                  {item.approveStatus || "pending"}
+                </span>
+              </div>
+
+              <div className="mt-5 grid grid-cols-2 gap-4 text-sm">
+
+                <div className="col-span-2">
+                  <p className="text-slate-400">Address</p>
+                  <p className="font-medium text-slate-700 dark:text-slate-300">
+                    {item.Address || item.address || "—"}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-slate-400">Phone</p>
+                  <p className="font-medium text-slate-700 dark:text-slate-300">
+                    {item.ownerphone || item.hotelPhone || "—"}
+                  </p>
+                </div>
+
+                <div className="col-span-2">
+                  <p className="text-slate-400">Email</p>
+                  <p className="font-medium text-slate-700 dark:text-slate-300 break-all">
+                    {item.owneremail}
+                  </p>
+                </div>
+
+              </div>
+
+            </div>
+
+            {/* Actions */}
+            <div className="mt-6 flex flex-wrap gap-2 justify-end border-t border-slate-100 pt-4 dark:border-slate-800">
+              <button
+                className="rounded-lg bg-sky-50 px-3 py-1.5 text-sm font-semibold text-sky-600 transition hover:bg-sky-100 dark:bg-sky-500/10 dark:text-sky-400 dark:hover:bg-sky-500/20"
+                onClick={() => handleview(item._id)}
+              >
+                View
+              </button>
+
+              {item.approveStatus === "pending" && (
+                <>
+                  <button
+                    className="rounded-lg bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-600 transition hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20"
+                    onClick={() => handleapprove(item)}
+                  >
+                    Approve
+                  </button>
+                  <button
+                    className="rounded-lg bg-rose-50 px-3 py-1.5 text-sm font-semibold text-rose-600 transition hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-400 dark:hover:bg-rose-500/20"
+                    onClick={() => {
+                      setreasonpopup(true);
+                      setReason({ ...Reason, item: item });
+                    }}
+                  >
+                    Reject
+                  </button>
+                </>
+              )}
+
+              {item.activeStatus === true && (
+                <>
+                  <button
+                    className="rounded-lg bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-600 transition hover:bg-amber-100 dark:bg-amber-500/10 dark:text-amber-400 dark:hover:bg-amber-500/20"
+                    onClick={() => handledeactivate(item._id)}
+                  >
+                    Deactivate
+                  </button>
+                </>
+              )}
+
+              {item.activeStatus === false && item.approveStatus === "approved" && (
+                <>
+                  <button
+                    className="rounded-lg bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-600 transition hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20"
+                    onClick={() => handlerestore(item._id)}
+                  >
+                    Restore
+                  </button>
+                </>
+              )}
+
+              <button
+                className="rounded-lg bg-rose-50 px-3 py-1.5 text-sm font-semibold text-rose-600 transition hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-400 dark:hover:bg-rose-500/20"
+                onClick={() => handledelete(item._id)}
+              >
+                Delete
+              </button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    ))
+  )}
+</div>
+
+{/* --- PAGINATION CONTROLS --- */}
+{totalAdmins > 0 && (
+  <div className="mt-6 flex flex-col items-center justify-between gap-4 border-t border-slate-200 pt-4 dark:border-slate-800 sm:flex-row">
+    <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
+      <span>
+        Showing <strong className="text-slate-900 dark:text-white">{startItem}</strong> to{" "}
+        <strong className="text-slate-900 dark:text-white">{endItem}</strong> of{" "}
+        <strong className="text-slate-900 dark:text-white">{totalAdmins}</strong> admins
+      </span>
+      <div className="flex items-center gap-1.5">
+        <label className="text-xs">Show:</label>
+        <select
+          value={limit}
+          onChange={(e) => { setLimit(Number(e.target.value)); setCurrentPage(1); }}
+          className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+        >
+          <option value={4}>4</option>
+          <option value={6}>6</option>
+          <option value={10}>10</option>
+          <option value={20}>20</option>
+        </select>
+      </div>
+    </div>
+    <div className="flex flex-wrap items-center justify-center gap-1.5">
+      <button
+        onClick={() => setCurrentPage(p => Math.max(p-1,1))}
+        disabled={currentPage===1}
+        className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+      >Previous</button>
+      <div className="flex items-center gap-1">
+        {getPageNumbers().map((p,idx) =>
+          p==='...' ? (
+            <span key={`d${idx}`} className="px-1.5 text-xs text-slate-400">...</span>
+          ) : (
+            <button key={p} onClick={()=>setCurrentPage(p)}
+              className={`h-8 w-8 rounded-lg text-xs font-semibold transition ${
+                currentPage===p ? "bg-emerald-600 text-white shadow-sm" : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+              }`}>{p}</button>
+          )
+        )}
+      </div>
+      <button
+        onClick={() => setCurrentPage(p => Math.min(p+1,totalPages))}
+        disabled={currentPage===totalPages}
+        className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+      >Next</button>
+    </div>
+  </div>
+)}
           {reasonpopup && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
              <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
                <div className="mb-4 flex items-center justify-between">
@@ -300,7 +459,7 @@ function Adminmanage() {
 
           {view && (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-    <div className="h-full w-full min-w-5xl rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl overflow-y-scroll scrollbar-thin">
+    <div className="w-full max-w-3xl max-h-[90vh] rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl overflow-y-auto flex flex-col">
 
       {/* Header */}
       <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 px-6 py-4">

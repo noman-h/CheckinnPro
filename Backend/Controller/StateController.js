@@ -41,18 +41,30 @@ exports.stateupdate=async (req,res)=>{
 
 exports.statereadall=async (req,res)=>{
     try{
-        const {search,status,sort}=req.query
+         const {search,status,sort,skip,limit}=req.query;
+         const searchVal = search || "";
 
+         let sorting=null;
+        if(sort==="az") sorting={statename:1}
+          else if(sort==="za") sorting={statename:-1}
+         else if(sort==='newest') sorting={createdAt:1}
+         else if(sort==='oldest') sorting={createdAt:-1} 
+        
+         let matchQuery = {
+             statename: { $regex: searchVal, $options: "i" }
+         };
+         if (status !== undefined) {
+             matchQuery.activestatus = status === "true";
+         }
+      
+      const totalcount = await states.countDocuments(matchQuery);
 
-        let sorting=null;
-       if(sort==="az") sorting={statename:1}
-         else if(sort==="za") sorting={statename:-1}
-        else if(sort==='newest') sorting={createdAt:1}
-        else if(sort==='oldest') sorting={createdAt:-1} 
-       
-     
-     const response=await states.find({statename:{$regex:search , $options:"i"},activestatus:status}).sort(sorting)
-     return res.status(200).json({response})
+      let query = states.find(matchQuery).sort(sorting);
+      if (skip) query = query.skip(parseInt(skip));
+      if (limit) query = query.limit(parseInt(limit));
+
+      const response = await query;
+      return res.status(200).json({response, totalcount})
     }
     catch(err){
         console.log(err);

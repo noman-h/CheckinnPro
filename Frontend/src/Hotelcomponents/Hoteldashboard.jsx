@@ -37,7 +37,7 @@ function Hoteldashboard() {
   const fetchbooking = useCallback(async () => {
     try {
       const result = await axios.get(
-        `${import.meta.env.VITE_API_URL}/booking/hotelbooking/${hotelemail}?search&&sort`
+        `${import.meta.env.VITE_API_URL}/booking/hotelbooking/${hotelemail}`
       );
       setbookingdata(result?.data?.response || []);
     } catch (err) {
@@ -132,7 +132,7 @@ function Hoteldashboard() {
   if (loading) {
     return (
       <div className={`${darkMode ? 'dark' : ''}`}>
-        <div className="flex min-h-screen items-center justify-center bg-slate-50 transition-colors dark:bg-slate-950">
+        <div className="flex py-20 items-center justify-center transition-colors">
           <div className="flex flex-col items-center gap-3">
             <div className="w-10 h-10 border-4 border-indigo-600 dark:border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
             <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">Loading Hotel Dashboard...</p>
@@ -144,7 +144,7 @@ function Hoteldashboard() {
 
   return (
     <div className={`${darkMode ? 'dark' : ''}`}>
-      <div className="min-h-screen bg-slate-50 p-6 font-sans text-slate-800 transition-colors duration-200 dark:bg-slate-950 dark:text-slate-100">
+      <div className="font-sans text-slate-800 transition-colors duration-200 dark:text-slate-100">
         
         {/* Top Header */}
         <header className="mx-auto mb-8 flex max-w-7xl flex-col gap-4 md:flex-row md:items-center md:justify-between">

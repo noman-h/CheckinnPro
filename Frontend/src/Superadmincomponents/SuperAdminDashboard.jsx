@@ -444,7 +444,7 @@ function SuperAdminDashboard() {
   }, [hotels.length, rooms.length, bookings.length]);
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 dark:bg-slate-950">
+    <div className="font-sans text-slate-800 transition-colors duration-200 dark:text-slate-100">
       <div className="mx-auto max-w-7xl">
         
         {/* HEADER */}
