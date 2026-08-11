@@ -1,4 +1,4 @@
-const { pdf } = require("../utils/pdfdownload");
+const { pdf } = require("../Utils/pdfdownload");
 
 exports.downloadpdf = async (req, res) => {
   try {
