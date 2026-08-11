@@ -8,10 +8,6 @@ function Pagenotfound() {
   return (
      <section
       className="auth-background mx-auto flex min-h-screen max-h-[calc(100vh-4rem)] max-w-full items-center justify-center bg-cover bg-center px-4 py-12 sm:px-6"
-      style={{
-        "--light-auth-background": `url(${lightbg})`,
-        "--dark-auth-background": `url(${darkbg})`,
-      }}
     >
       <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-xl shadow-slate-200/50 sm:p-8 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20">
 
