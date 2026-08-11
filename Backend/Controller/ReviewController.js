@@ -47,7 +47,7 @@ exports.hotelreviews= async (req,res)=>{
         return res.status(400).json({message:"bad request"})
      }
 
-     const result=await reviews.find({hotelId:hotel._id}) 
+     const result=await reviews.find({hotelId:hotel._id}).populate('userId','name email') 
      return res.status(200).json({result})
     }
     catch(err){

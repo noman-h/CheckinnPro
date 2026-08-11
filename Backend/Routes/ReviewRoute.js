@@ -3,8 +3,11 @@ const router=express.Router()
 
 const reviewcontroller=require('../Controller/ReviewController')
 
-router.post('/addreview',reviewcontroller.addreview)
-router.get('/hotelreviews/:hotelEmail',reviewcontroller.hotelreviews)
-router.get('/adminhotelreviews/:owneremail',reviewcontroller.adminhotelreviews)
+const auth=require('../Middleware/Auth')
+const authorize=require('../Middleware/Authorize')
+
+router.post('/addreview',auth,authorize('user'),reviewcontroller.addreview)
+router.get('/hotelreviews/:hotelEmail',auth,authorize('hotel'),reviewcontroller.hotelreviews)
+router.get('/adminhotelreviews/:owneremail',auth,authorize('admin'),reviewcontroller.adminhotelreviews)
 
 module.exports=router

@@ -200,20 +200,10 @@ const [successmsg, setsuccessmsg] = useState("");
 
 
 
-   const cityoptions = citydata.map((state) => {
-    const districts = state.alldistricts.filter(
-      (district) => district.activestatus
-    );
-
-    return districts.map((district) =>
-      district.allcities
-        .filter((city) => city.activestatus)
-        .map((city) => (
-          <option key={city._id} value={city._id}>
-          {city.cityname}  ({state.statename})  ({district.districtname})  
+   const cityoptions = citydata.map((city) => {
+      return  <option key={city._id} value={city._id}>
+          {city.cityname}  ({city?.district_id?.districtname})  ({city.district_id?.state_id?.statename})  
           </option>
-        ))
-    );
   });
 
 

@@ -56,6 +56,7 @@ function Login() {
             navigate('/admindashboard')
           }
           else if(role==="hotel"){
+            localStorage.setItem('userid',result?.data?.user?._id)
             navigate('/hoteldashboard')
           }
           else{

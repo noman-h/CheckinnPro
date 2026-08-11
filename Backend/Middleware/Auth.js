@@ -20,12 +20,21 @@ module.exports=async (req,res,next)=>{
     }
     
     const userdetail=await users.findOne({email:decode.email})
-    
+       
     req.user=userdetail
     next()
 
     }
     catch(err){
+       console.log(err);
+       
+   if (err.message === "jwt expired") {
+      return res.status(401).json(err);
+    }
+   if (err.message === "jwt malformed") {
+      return res.status(401).json(err);
+    }
+        
      return res.status(500).json({message:"internal server error",err})
     }
 }

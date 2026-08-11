@@ -2,6 +2,7 @@ import axios from 'axios';
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom';
 import UseDebouncing from '../Hooks/UseDebouncing';
+import { Download } from 'lucide-react';
 
 function AdminHotelsmanage() {
 
@@ -24,12 +25,19 @@ function AdminHotelsmanage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalHotels, setTotalHotels] = useState(0);
 
+  const [citydata, setcitydata] = useState([]);
+  const [bulkImportPopup, setBulkImportPopup] = useState(false);
+  const [bulkFile, setBulkFile] = useState(null);
+  const [bulkCityId, setBulkCityId] = useState("");
+  const token=localStorage.getItem('token')
 
   async function fetchhotels() {
     try {
       const skip = (currentPage - 1) * limit;
       const result = await axios.get(
-        `${import.meta.env.VITE_API_URL}/hotel/getalladminhotels/${adminemail}?search=${debouncedvalue}&sort=${sort}&status=${status}&skip=${skip}&limit=${limit}`,
+        `${import.meta.env.VITE_API_URL}/hotel/getalladminhotels/${adminemail}?search=${debouncedvalue}&sort=${sort}&status=${status}&skip=${skip}&limit=${limit}`,{
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
 
       const responseData = result?.data?.response || [];
@@ -39,6 +47,14 @@ function AdminHotelsmanage() {
       setTotalHotels(count);
       setTotalPages(Math.ceil(count / limit) || 1);
     } catch (err) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       console.log(err.response);
     }
   }
@@ -46,39 +62,69 @@ function AdminHotelsmanage() {
 
   async function handledeactivate(id) {
     try {
-      const result = await axios.patch(`${import.meta.env.VITE_API_URL}/hotel/softdeletehotel/${id}`)
+      const result = await axios.patch(`${import.meta.env.VITE_API_URL}/hotel/softdeletehotel/${id}`,{},{
+          headers: { Authorization: `Bearer ${token}` },
+        })
 
       if (result.status === 200) {
         fetchhotels()
       }
     }
     catch (err) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       console.log(err)
     }
   }
 
   async function handlerestore(id) {
     try {
-      const result = await axios.patch(`${import.meta.env.VITE_API_URL}/hotel/recoverdeletehotel/${id}`)
+      const result = await axios.patch(`${import.meta.env.VITE_API_URL}/hotel/recoverdeletehotel/${id}`,{},{
+          headers: { Authorization: `Bearer ${token}` },
+        })
 
       if (result.status === 200) {
         fetchhotels()
       }
     }
     catch (err) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       console.log(err)
     }
   }
 
   async function handledelete(id) {
     try {
-      const result = await axios.delete(`${import.meta.env.VITE_API_URL}/hotel/deletehotel/${id}`)
+      const result = await axios.delete(`${import.meta.env.VITE_API_URL}/hotel/deletehotel/${id}`,{
+          headers: { Authorization: `Bearer ${token}` },
+        })
 
       if (result.status === 200) {
         fetchhotels()
       }
     }
     catch (err) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       console.log(err)
     }
   }
@@ -88,11 +134,21 @@ function AdminHotelsmanage() {
 
   async function handleview(id) {
     try {
-      const result = await axios.get(`${import.meta.env.VITE_API_URL}/hotel/getonehotel/${id}`)
+      const result = await axios.get(`${import.meta.env.VITE_API_URL}/hotel/getonehotel/${id}`,{
+          headers: { Authorization: `Bearer ${token}` },
+        })
 
       setview(result?.data?.response)
     }
     catch (err) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       console.log(err);
 
     }
@@ -104,8 +160,18 @@ function AdminHotelsmanage() {
     setCurrentPage(1);
   }, [debouncedvalue, sort, status])
 
+  async function fetchcity() {
+    try {
+      const result = await axios.get(`${import.meta.env.VITE_API_URL}/location/getallcity`);
+      setcitydata(result?.data?.response || []);
+    } catch (err) {
+      console.log(err);
+    }
+  }
+
   useEffect(() => {
     fetchhotels()
+    fetchcity()
   }, [debouncedvalue, sort, status, currentPage, limit])
 
   // --- PAGE NUMBERS GENERATOR ---
@@ -128,8 +194,79 @@ function AdminHotelsmanage() {
   // states filtered by their own activestatus
   const filteredhotel = hoteldata
 
-  console.log(hoteldata);
+  
+  const handleDownloadPDF = async () => {
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/download/pdf`,
+        { pdfdata: hoteldata },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          responseType: 'blob',
+        }
+      );
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'hotels.pdf');
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+    } catch (error) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
+      console.error('Error downloading PDF:', error);
+    }
+  };
 
+  async function handleBulkImport(e) {
+    e.preventDefault();
+    if (!bulkCityId) {
+      alert("Please select a city first.");
+      return;
+    }
+    if (!bulkFile) {
+      alert("Please select an excel file to upload.");
+      return;
+    }
+    const formData = new FormData();
+    formData.append("CityId", bulkCityId);
+    formData.append("adminEmail", adminemail);
+    formData.append("file", bulkFile);
+
+    try {
+      const result = await axios.post(`${import.meta.env.VITE_API_URL}/hotel/bulkimport`, formData, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        },
+      });
+      if (result.status === 200) {
+        alert(`Success! Imported ${result.data.imported} hotels.`);
+        setBulkImportPopup(false);
+        setBulkFile(null);
+        setBulkCityId("");
+        fetchhotels();
+      }
+    } catch (err) {
+      if (err.status === 401) {
+        localStorage.removeItem("user")
+        localStorage.removeItem("userid")
+        localStorage.removeItem("token")
+        localStorage.removeItem("email")
+        localStorage.removeItem("theme")
+        navigate('/login')
+      }
+      alert("Error importing hotels: " + (err.response?.data?.message || err.message));
+      console.log(err);
+    }
+  }
 
 
   return (
@@ -177,7 +314,16 @@ function AdminHotelsmanage() {
           </select>
         </div>
 
-        <div className="flex justify-start sm:justify-end">
+        <div className="flex gap-3 justify-start sm:justify-end">
+           <button onClick={handleDownloadPDF} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 flex items-center gap-2">
+                <Download className="h-4 w-4" /> PDF
+              </button>
+          <button
+            className="rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            onClick={() => setBulkImportPopup(true)}
+          >
+            Bulk Import Excel
+          </button>
           <button
             className="rounded-xl bg-linear-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
             onClick={() => navigate('/hotelform')}
@@ -600,11 +746,54 @@ function AdminHotelsmanage() {
 
             </div>
 
+          {/* End Pagination */}
+
+      </div>
+</div>
+      )}
+
+      {bulkImportPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="relative w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-700">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800 dark:text-white">Bulk Import Hotels</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Upload an Excel sheet to bulk import hotels.</p>
+              </div>
+              <button type="button" onClick={() => { setBulkImportPopup(false); setBulkFile(null); setBulkCityId(""); }} className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-red-500 dark:hover:bg-slate-800">
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleBulkImport} className="p-6">
+              <div className="space-y-5">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Select City</label>
+                  <select value={bulkCityId} onChange={(e) => setBulkCityId(e.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-700 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                    <option value="">Select a city...</option>
+                    {citydata.map((c) => <option key={c._id} value={c._id}>{c.cityname}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Excel File (.xlsx)</label>
+                  <input type="file" accept=".xlsx, .xls" onChange={(e) => setBulkFile(e.target.files[0])} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-700 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+                </div>
+              </div>
+
+              <div className="mt-8 flex items-center justify-end gap-3 border-t border-slate-200 pt-5 dark:border-slate-700">
+                <button type="button" onClick={() => { setBulkImportPopup(false); setBulkFile(null); setBulkCityId(""); }} className="rounded-xl border border-slate-300 px-5 py-2.5 font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800">
+                  Cancel
+                </button>
+                <button type="submit" className="rounded-xl bg-linear-to-r from-emerald-600 to-teal-600 px-6 py-2.5 font-semibold text-white shadow transition hover:-translate-y-0.5 hover:shadow-lg">
+                  Import Hotels
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
     </div>
-  )
-}
+  )}
+
 
 export default AdminHotelsmanage

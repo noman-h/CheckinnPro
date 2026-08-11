@@ -2,6 +2,7 @@ import axios from 'axios';
 import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom';
 import UseDebouncing from '../Hooks/UseDebouncing';
+import { Download } from 'lucide-react';
 
 function HotelRoommanage() {
 
@@ -20,13 +21,17 @@ function HotelRoommanage() {
      const [totalRooms, setTotalRooms] = useState(0);
 
      const hotelEmail=localStorage.getItem("email")
-
+     const token=localStorage.getItem('token')
     
       async function fetchrooms() {
         try {
           const skip = (currentPage - 1) * limit;
           const result = await axios.get(
-            `${import.meta.env.VITE_API_URL}/room/getallhotelrooms/${hotelEmail}?search=${debouncedvalue}&status=${status}&skip=${skip}&limit=${limit}`,
+            `${import.meta.env.VITE_API_URL}/room/getallhotelrooms/${hotelEmail}?search=${debouncedvalue}&status=${status}&skip=${skip}&limit=${limit}`,{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        }
           );
 
           const responseData = result?.data?.response || [];
@@ -36,6 +41,14 @@ function HotelRoommanage() {
           setTotalRooms(count);
           setTotalPages(Math.ceil(count / limit) || 1);
         } catch (err) {
+          if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
           console.log(err);
         }
       }
@@ -43,39 +56,75 @@ function HotelRoommanage() {
 
     async function handledeactivate(id){
            try{
-              const result=await axios.patch(`${import.meta.env.VITE_API_URL}/room/softdeleteroom/${id}`)
+              const result=await axios.patch(`${import.meta.env.VITE_API_URL}/room/softdeleteroom/${id}`,{},{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        })
 
              if(result.status===200){
                 fetchrooms()
              }
            }
            catch(err){
+            if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
              console.log(err)
            }
       }
 
       async function handlerestore(id){
            try{
-              const result=await axios.patch(`${import.meta.env.VITE_API_URL}/room/recoverdeleteroom/${id}`)
+              const result=await axios.patch(`${import.meta.env.VITE_API_URL}/room/recoverdeleteroom/${id}`,{},{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        })
 
              if(result.status===200){
                 fetchrooms()
              }
            }
            catch(err){
+            if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
              console.log(err)
            }
       }
 
       async function handledelete(id){
            try{
-              const result=await axios.delete(`${import.meta.env.VITE_API_URL}/room/deleteroom/${id}`)
+              const result=await axios.delete(`${import.meta.env.VITE_API_URL}/room/deleteroom/${id}`,{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        })
 
              if(result.status===200){
                 fetchrooms()
              }
            }
            catch(err){
+            if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
              console.log(err)
            }
       }
@@ -121,6 +170,35 @@ function HotelRoommanage() {
       const endItem = Math.min(currentPage * limit, totalRooms);
 
 
+      const handleDownloadPDF = async () => {
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/download/pdf`,
+        { pdfdata: roomdata },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          responseType: 'blob',
+        }
+      );
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'rooms.pdf');
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+    } catch (error) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
+      console.error('Error downloading PDF:', error);
+    }
+  };
    
    
   return (
@@ -158,7 +236,10 @@ function HotelRoommanage() {
               />
             </div>
 
-            <div className="flex justify-start sm:justify-end">
+            <div className="flex gap-3 justify-start sm:justify-end">
+               <button onClick={handleDownloadPDF} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 flex items-center gap-2">
+                <Download className="h-4 w-4" /> PDF
+              </button>
               <button
                 className="rounded-xl bg-linear-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                 onClick={() =>navigate('/roomaddform')}

@@ -1,8 +1,11 @@
 import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import UseDebouncing from '../Hooks/UseDebouncing';
+import { useNavigate } from 'react-router-dom';
+import { Download } from 'lucide-react';
 
 function Adminbookings() {
+  const navigate=useNavigate()
   const [search, setsearch] = useState("");
   const [sort, setsort] = useState("");
 
@@ -18,6 +21,8 @@ function Adminbookings() {
   const [bookingdata, setbookingdata] = useState([]);
   const [view, setview] = useState(null);
 
+  const token=localStorage.getItem('token')
+
   // --- 2. FETCH DATA WITH LIMIT & SKIP LOGIC ---
   async function fetchbooking() {
     try {
@@ -25,7 +30,10 @@ function Adminbookings() {
       const skip = (currentPage - 1) * limit;
 
       const result = await axios.get(
-        `${import.meta.env.VITE_API_URL}/booking/alladminbooking/${adminemail}?search=${debouncedvalue}&sort=${sort}&page=${currentPage}&limit=${limit}&skip=${skip}`
+        `${import.meta.env.VITE_API_URL}/booking/alladminbooking/${adminemail}?search=${debouncedvalue}&sort=${sort}&page=${currentPage}&limit=${limit}&skip=${skip}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
       
       
@@ -40,6 +48,15 @@ function Adminbookings() {
       setTotalPages(Math.ceil(count / limit) || 1);
   
     } catch (err) {
+
+      if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       console.error("Error fetching bookings:", err);
     }
   }
@@ -47,36 +64,80 @@ function Adminbookings() {
 
   async function handleview(bookid) {
     try {
-      const result = await axios.get(`${import.meta.env.VITE_API_URL}/booking/bookingview/${bookid}`);
+      const result = await axios.get(`${import.meta.env.VITE_API_URL}/booking/bookingview/${bookid}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
       setview(result?.data?.result);
     } catch (err) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       alert(err);
     }
   }
 
   async function handlecheckin(bookid) {
     try {
-      await axios.patch(`${import.meta.env.VITE_API_URL}/booking/bookingcheckin/${bookid}`);
+      await axios.patch(`${import.meta.env.VITE_API_URL}/booking/bookingcheckin/${bookid}`,{},
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
       fetchbooking();
     } catch (err) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       alert(err);
     }
   }
 
   async function handlecheckout(bookid) {
     try {
-      await axios.patch(`${import.meta.env.VITE_API_URL}/booking/bookingcheckout/${bookid}`);
+      await axios.patch(`${import.meta.env.VITE_API_URL}/booking/bookingcheckout/${bookid}`,{},{
+          headers: { Authorization: `Bearer ${token}` },
+        });
       fetchbooking();
     } catch (err) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       alert(err);
     }
   }
 
   async function handlecancel(bookid) {
     try {
-      await axios.patch(`${import.meta.env.VITE_API_URL}/booking/bookingcancel/${bookid}`);
+      await axios.patch(`${import.meta.env.VITE_API_URL}/booking/bookingcancel/${bookid}`,{},{
+          headers: { Authorization: `Bearer ${token}` },
+        });
       fetchbooking();
     } catch (err) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       alert(err);
     }
   }
@@ -120,6 +181,36 @@ function Adminbookings() {
   const startItem = totalBookings === 0 ? 0 : (currentPage - 1) * limit + 1;
   const endItem = Math.min(currentPage * limit, totalBookings);
 
+  const handleDownloadPDF = async () => {
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/download/pdf`,
+        { pdfdata: bookingdata },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          responseType: 'blob',
+        }
+      );
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'bookings.pdf');
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+    } catch (error) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
+      console.error('Error downloading PDF:', error);
+    }
+  };
+
   return (
     <div className="manage-page w-full p-4 text-slate-800 dark:text-slate-100">
       
@@ -147,6 +238,10 @@ function Adminbookings() {
 
         {/* LOGIC 1: HOW MUCH DATA TO SHOW (LIMIT SELECTOR) */}
         <div className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
+           <button onClick={handleDownloadPDF} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 flex items-center gap-2">
+                <Download className="h-4 w-4" /> PDF
+              </button>
+
           <span>Show:</span>
           <select
             value={limit}

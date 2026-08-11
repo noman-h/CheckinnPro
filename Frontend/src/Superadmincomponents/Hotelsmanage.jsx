@@ -2,6 +2,7 @@ import axios from 'axios';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import UseDebouncing from '../Hooks/UseDebouncing';
+import { Download } from 'lucide-react';
 
 function Hotelsmanage() {
 
@@ -19,6 +20,8 @@ function Hotelsmanage() {
   const [totalHotels, setTotalHotels] = useState(0);
 
   const [hoteldata, sethoteldata] = useState([]);
+
+  const token=localStorage.getItem('token')
 
   async function fetchhotels() {
     try {
@@ -41,46 +44,86 @@ function Hotelsmanage() {
 
   async function handledeactivate(id) {
     try {
-      const result = await axios.patch(`${import.meta.env.VITE_API_URL}/hotel/softdeletehotel/${id}`)
+      const result = await axios.patch(`${import.meta.env.VITE_API_URL}/hotel/softdeletehotel/${id}`,{},{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        })
 
       if (result.status === 200) {
         fetchhotels()
       }
     }
     catch (err) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       console.log(err)
     }
   }
 
   async function handlerestore(id) {
     try {
-      const result = await axios.patch(`${import.meta.env.VITE_API_URL}/hotel/recoverdeletehotel/${id}`)
+      const result = await axios.patch(`${import.meta.env.VITE_API_URL}/hotel/recoverdeletehotel/${id}`,{},{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        })
 
       if (result.status === 200) {
         fetchhotels()
       }
     }
     catch (err) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       console.log(err)
     }
   }
 
   async function handledelete(id) {
     try {
-      const result = await axios.delete(`${import.meta.env.VITE_API_URL}/hotel/deletehotel/${id}`)
+      const result = await axios.delete(`${import.meta.env.VITE_API_URL}/hotel/deletehotel/${id}`,{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        })
 
       if (result.status === 200) {
         fetchhotels()
       }
     }
     catch (err) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       console.log(err)
     }
   }
 
   async function handleapprove(item) {
     try {
-      const result = await axios.patch(`${import.meta.env.VITE_API_URL}/hotel/approvehotel`, { ...item })
+      const result = await axios.patch(`${import.meta.env.VITE_API_URL}/hotel/approvehotel`, { ...item },{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        })
 
       console.log(result);
       if (result.status === 200) {
@@ -89,6 +132,14 @@ function Hotelsmanage() {
 
     }
     catch (err) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       alert(err?.response?.data?.message || "something error please retry")
 
     }
@@ -105,7 +156,11 @@ function Hotelsmanage() {
     const item = Reason.item
     const reason = Reason.reason
     try {
-      const result = await axios.patch(`${import.meta.env.VITE_API_URL}/hotel/rejecthotel`, { ...item, reason })
+      const result = await axios.patch(`${import.meta.env.VITE_API_URL}/hotel/rejecthotel`, { ...item, reason },{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        })
 
       console.log(result);
       if (result.status === 200) {
@@ -118,6 +173,14 @@ function Hotelsmanage() {
 
     }
     catch (err) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       alert(err)
 
     }
@@ -127,11 +190,19 @@ function Hotelsmanage() {
 
   async function handleview(id) {
     try {
-      const result = await axios.get(`${import.meta.env.VITE_API_URL}/hotel/getonehotel/${id}`)
+      const result = await axios.get(`${import.meta.env.VITE_API_URL}/hotel/getonehotel/${id}`,)
 
       setview(result?.data?.response)
     }
     catch (err) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       console.log(err);
 
     }
@@ -166,6 +237,35 @@ function Hotelsmanage() {
 
   const filteredhotel = hoteldata;
 
+  const handleDownloadPDF = async () => {
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/download/pdf`,
+        { pdfdata: hoteldata },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          responseType: 'blob',
+        }
+      );
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'hotels.pdf');
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+    } catch (error) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
+      console.error('Error downloading PDF:', error);
+    }
+  };
 
 
   return (
@@ -230,7 +330,10 @@ function Hotelsmanage() {
           </select>
         </div>
 
-        <div className="flex justify-start sm:justify-end">
+        <div className="flex gap-3 justify-start sm:justify-end">
+           <button onClick={handleDownloadPDF} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 flex items-center gap-2">
+                <Download className="h-4 w-4" /> PDF
+              </button>
           <button
             className="rounded-xl bg-linear-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
             onClick={() => navigate('/hotelform')}

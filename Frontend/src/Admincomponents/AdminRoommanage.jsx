@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { LazyLoadImage } from 'react-lazy-load-image-component'
 import 'react-lazy-load-image-component/src/effects/blur.css'
 import UseDebouncing from '../Hooks/UseDebouncing'
+import { Download } from 'lucide-react'
 
 function AdminRoommanage() {
   const [search, setsearch] = useState("")
@@ -22,11 +23,18 @@ function AdminRoommanage() {
   const [roomdata, setroomdata] = useState([])
 
   const [hoteldata, sethoteldata] = useState([]);
+  const [bulkImportPopup, setBulkImportPopup] = useState(false);
+  const [bulkFile, setBulkFile] = useState(null);
+  const [bulkHotelId, setBulkHotelId] = useState("");
+
+  const token=localStorage.getItem('token')
     
       async function fetchhotels() {
         try {
           const result = await axios.get(
-            `${import.meta.env.VITE_API_URL}/hotel/getalladminhotelsopt/${adminemail}`,
+            `${import.meta.env.VITE_API_URL}/hotel/getalladminhotelsopt/${adminemail}`,{
+          headers: { Authorization: `Bearer ${token}` },
+        }
           );
            
           sethoteldata(result?.data?.response || []);
@@ -40,7 +48,9 @@ function AdminRoommanage() {
       const skip = (page - 1) * limit;
 
       const result = await axios.get(
-        `${import.meta.env.VITE_API_URL}/room/getalladminhotelrooms/${adminemail}?search=${debouncedvalue}&status=${status}&sort=${sort}&skip=${skip}&limit=${limit}`
+        `${import.meta.env.VITE_API_URL}/room/getalladminhotelrooms/${adminemail}?search=${debouncedvalue}&status=${status}&sort=${sort}&skip=${skip}&limit=${limit}`,{
+          headers: { Authorization: `Bearer ${token}` },
+        }
       )
 
       // Accepts total & totalPages from API response, or provides client-side fallbacks
@@ -53,39 +63,77 @@ function AdminRoommanage() {
       setTotalData(totalCount)
       setTotalPages(computedTotalPages)
     } catch (err) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       console.log(err)
     }
   }
 
   async function handledeactivate(id) {
     try {
-      const result = await axios.patch(`${import.meta.env.VITE_API_URL}/room/softdeleteroom/${id}`)
+      const result = await axios.patch(`${import.meta.env.VITE_API_URL}/room/softdeleteroom/${id}`,{},{
+          headers: { Authorization: `Bearer ${token}` },
+        })
       if (result.status === 200) {
         fetchrooms()
       }
     } catch (err) {
+      if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       console.log(err)
     }
   }
 
   async function handlerestore(id) {
     try {
-      const result = await axios.patch(`${import.meta.env.VITE_API_URL}/room/recoverdeleteroom/${id}`)
+      const result = await axios.patch(`${import.meta.env.VITE_API_URL}/room/recoverdeleteroom/${id}`,{},{
+          headers: { Authorization: `Bearer ${token}` },
+        })
       if (result.status === 200) {
         fetchrooms()
       }
     } catch (err) {
+      if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       console.log(err)
     }
   }
 
   async function handledelete(id) {
     try {
-      const result = await axios.delete(`${import.meta.env.VITE_API_URL}/room/deleteroom/${id}`)
+      const result = await axios.delete(`${import.meta.env.VITE_API_URL}/room/deleteroom/${id}`,{
+          headers: { Authorization: `Bearer ${token}` },
+        })
       if (result.status === 200) {
         fetchrooms()
       }
     } catch (err) {
+      if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       console.log(err)
     }
   }
@@ -94,7 +142,9 @@ function AdminRoommanage() {
 
   async function handleview(id) {
     try {
-      const result = await axios.get(`${import.meta.env.VITE_API_URL}/room/getoneroom/${id}`)
+      const result = await axios.get(`${import.meta.env.VITE_API_URL}/room/getoneroom/${id}`,{
+          headers: { Authorization: `Bearer ${token}` },
+        })
       setview(result?.data?.response)
     } catch (err) {
       console.log(err)
@@ -116,6 +166,100 @@ function AdminRoommanage() {
   function hoteloptions() {
     return hoteldata.map((h) => <option key={h._id} value={h._id}>{h.hotelName}</option>)
   }
+
+  const handleDownloadPDF = async () => {
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/download/pdf`,
+        { pdfdata: roomdata },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          responseType: 'blob',
+        }
+      );
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'rooms.pdf');
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+    } catch (error) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
+      console.error('Error downloading PDF:edit', error);
+    }
+  };
+
+  async function handleBulkImport(e) {
+  e.preventDefault();
+
+  if (!bulkHotelId) {
+    alert("Please select a hotel first.");
+    return;
+  }
+
+  if (!bulkFile) {
+    alert("Please select an Excel file to upload.");
+    return;
+  }
+
+  const formData = new FormData();
+
+  formData.append("hotel_id", bulkHotelId);
+  formData.append("file", bulkFile);
+
+  try {
+    const result = await axios.post(
+      `${import.meta.env.VITE_API_URL}/room/bulkimport`,
+      formData,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (result.status === 200) {
+      alert(
+        `Import completed!\nImported: ${result.data.imported}\nErrors: ${result.data.errors?.length || 0}`
+      );
+
+      setBulkImportPopup(false);
+      setBulkFile(null);
+      setBulkHotelId("");
+
+      fetchrooms();
+    }
+
+  } catch (err) {
+
+    if (err.response?.status === 401) {
+      localStorage.removeItem("user");
+      localStorage.removeItem("userid");
+      localStorage.removeItem("token");
+      localStorage.removeItem("email");
+      localStorage.removeItem("theme");
+
+      navigate("/login");
+      return;
+    }
+
+    alert(
+      "Error importing rooms: " +
+      (err.response?.data?.message || err.message)
+    );
+
+    console.log(err);
+  }
+}
+
 
   return (
     <div className="manage-page overflow-x-hidden w-full rounded-xl bg-white p-3 text-slate-800 shadow-sm dark:bg-slate-900 dark:text-slate-100">
@@ -161,7 +305,16 @@ function AdminRoommanage() {
           </select>
         </div>
 
-        <div className="flex justify-start sm:justify-end">
+        <div className="flex gap-3 justify-start sm:justify-end">
+           <button onClick={handleDownloadPDF} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 flex items-center gap-2">
+                <Download className="h-4 w-4" /> PDF
+              </button>
+          <button
+            className="rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            onClick={() => setBulkImportPopup(true)}
+          >
+            Bulk Import Excel
+          </button>
           <button
             className="rounded-xl bg-linear-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
             onClick={() => navigate('/roomaddform')}
@@ -254,7 +407,7 @@ function AdminRoommanage() {
                   </button>
 
                   <button
-                    onClick={() => typeof handleRoomEdit === 'function' && handleRoomEdit(room)}
+                    onClick={() => navigate(`/roomaddform/${room._id}`)}
                     className="rounded-lg bg-indigo-50 px-3 py-1.5 text-sm font-semibold text-indigo-600 transition hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:hover:bg-indigo-500/20"
                   >
                     Edit
@@ -578,6 +731,48 @@ function AdminRoommanage() {
           </div>
         </div>
       )}
+
+      {bulkImportPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="relative w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-700">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800 dark:text-white">Bulk Import Rooms</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Upload an Excel sheet to bulk import rooms.</p>
+              </div>
+              <button type="button" onClick={() => { setBulkImportPopup(false); setBulkFile(null); setBulkHotelId(""); }} className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-red-500 dark:hover:bg-slate-800">
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleBulkImport} className="p-6">
+              <div className="space-y-5">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Select Hotel</label>
+                  <select value={bulkHotelId} onChange={(e) => setBulkHotelId(e.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-700 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                    <option value="">Select a hotel...</option>
+                    {hoteloptions()}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Excel File (.xlsx)</label>
+                  <input type="file" accept=".xlsx, .xls" onChange={(e) => setBulkFile(e.target.files[0])} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-700 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+                </div>
+              </div>
+
+              <div className="mt-8 flex items-center justify-end gap-3 border-t border-slate-200 pt-5 dark:border-slate-700">
+                <button type="button" onClick={() => { setBulkImportPopup(false); setBulkFile(null); setBulkHotelId(""); }} className="rounded-xl border border-slate-300 px-5 py-2.5 font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800">
+                  Cancel
+                </button>
+                <button type="submit" className="rounded-xl bg-linear-to-r from-emerald-600 to-teal-600 px-6 py-2.5 font-semibold text-white shadow transition hover:-translate-y-0.5 hover:shadow-lg">
+                  Import Rooms
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }

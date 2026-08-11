@@ -12,7 +12,6 @@ function Resetpass() {
 
   const [resetd,setresetd]=useState({
     email:"",
-    password:"",
     newpassword:"",
     confirmpassword:"",
   })
@@ -25,7 +24,6 @@ function Resetpass() {
     const obj={}
 
     if(resetd.email==="") obj.email="email is required"
-    if(resetd.password==="") obj.password="password is required"
      if(resetd.newpassword==="") obj.newpassword="password is required"
     if(resetd.confirmpassword==="") obj.confirmpassword="password is required"
 
@@ -43,7 +41,6 @@ function Resetpass() {
    
                setresetd({
     email:"",
-    password:"",
     newpassword:"",
     confirmpassword:""
   })
@@ -53,14 +50,20 @@ navigate('/login')
         
     }
     catch(err){
+
+      if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
         
         if(err.status===404){
             obj.email="email not found"
         }
-        if(err.status===401){
-          obj.password="wrong password"
-
-      }
+       
     }
     finally{
       setsubmitting(false)
@@ -97,11 +100,6 @@ navigate('/login')
           <p className='mt-1 text-sm font-semibold text-rose-500'>{err.email}</p>
            </div>
 
-           <div className='flex flex-col'>
-          <label htmlFor="" className='mb-1.5 text-sm font-medium text-slate-700 dark:text-slate-200'>Password</label>
-          <input value={resetd.password} onChange={(e)=>setresetd({...resetd,password:e.target.value})}  type="password"  className='w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-950 outline-none placeholder:text-slate-400 focus:border-indigo-500 focus:ring-3 focus:ring-indigo-500/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white'/>
-           <p className='mt-1 text-sm font-semibold text-rose-500'>{err.password}</p>
-          </div>
 
           <div className='flex flex-col'>
           <label htmlFor="" className='mb-1.5 text-sm font-medium text-slate-700 dark:text-slate-200'>New Password</label>

@@ -1,6 +1,8 @@
 import axios from 'axios';
 import React, { useEffect, useState } from 'react'
 import UseDebouncing from '../Hooks/UseDebouncing';
+import { useNavigate } from 'react-router-dom';
+import { Download } from 'lucide-react';
 
 function Coupansmanage() {
 
@@ -11,18 +13,31 @@ function Coupansmanage() {
 
    const debouncedsearch=UseDebouncing(search,1000)
 
+   const navigate=useNavigate()
 
       const [hoteldata, sethoteldata] = useState([]);
        const adminemail = localStorage.getItem('email');
       
+       const token=localStorage.getItem('token')
+
       async function fetchhotels() {
         try {
           const result = await axios.get(
-            `${import.meta.env.VITE_API_URL}/hotel/getalladminhotels/${adminemail}?search&&sort&&status=active`,
+            `${import.meta.env.VITE_API_URL}/hotel/getalladminhotels/${adminemail}?search&&sort&&status=active`,{
+          headers: { Authorization: `Bearer ${token}` },
+        }
           );
     
           sethoteldata(result?.data?.response || []);
         } catch (err) {
+          if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
           console.log(err);
         }
       }
@@ -39,7 +54,9 @@ function Coupansmanage() {
         try {
           const skip = (currentPage - 1) * limit;
           const result = await axios.get(
-            `${import.meta.env.VITE_API_URL}/coupan/getalladminhotelcoupans/${adminemail}?search=${debouncedsearch}&status=${status}&sort=${sort}&hotelsort=${hotelsort}&skip=${skip}&limit=${limit}`,
+            `${import.meta.env.VITE_API_URL}/coupan/getalladminhotelcoupans/${adminemail}?search=${debouncedsearch}&status=${status}&sort=${sort}&hotelsort=${hotelsort}&skip=${skip}&limit=${limit}`,{
+          headers: { Authorization: `Bearer ${token}` },
+        }
           );
     
           const responseData = result?.data?.response || [];
@@ -49,45 +66,83 @@ function Coupansmanage() {
           setTotalCoupons(count);
           setTotalPages(Math.ceil(count / limit) || 1);
         } catch (err) {
+          if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
           console.log(err);
         }
       }
 
       async function handledeactivate(id){
            try{
-              const result=await axios.patch(`${import.meta.env.VITE_API_URL}/coupan/softdeletecoupan/${id}`)
+              const result=await axios.patch(`${import.meta.env.VITE_API_URL}/coupan/softdeletecoupan/${id}`,{},{
+          headers: { Authorization: `Bearer ${token}` },
+        })
 
              if(result.status===200){
                 fetchcoupans()
              }
            }
            catch(err){
+            if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
              console.log(err)
            }
       }
 
       async function handlerestore(id){
            try{
-              const result=await axios.patch(`${import.meta.env.VITE_API_URL}/coupan/recoverdeletecoupan/${id}`)
+              const result=await axios.patch(`${import.meta.env.VITE_API_URL}/coupan/recoverdeletecoupan/${id}`,{},{
+          headers: { Authorization: `Bearer ${token}` },
+        })
 
              if(result.status===200){
                 fetchcoupans()
              }
            }
            catch(err){
+            if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
              console.log(err)
            }
       }
 
       async function handledelete(id){
            try{
-              const result=await axios.delete(`${import.meta.env.VITE_API_URL}/coupan/deletecoupan/${id}`)
+              const result=await axios.delete(`${import.meta.env.VITE_API_URL}/coupan/deletecoupan/${id}`,{
+          headers: { Authorization: `Bearer ${token}` },
+        })
 
              if(result.status===200){
                 fetchcoupans()
              }
            }
            catch(err){
+            if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
              console.log(err)
            }
       }
@@ -96,10 +151,20 @@ function Coupansmanage() {
 
       async function handleview(id){
            try{
-              const result=await axios.get(`${import.meta.env.VITE_API_URL}/coupan/getonecoupan/${id}`)
+              const result=await axios.get(`${import.meta.env.VITE_API_URL}/coupan/getonecoupan/${id}`,{
+          headers: { Authorization: `Bearer ${token}` },
+        })
            setview(result?.data?.response)
            }
            catch(err){
+            if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
              console.log(err)
            }
       }
@@ -136,6 +201,9 @@ function Coupansmanage() {
     const endItem = Math.min(currentPage * limit, totalCoupons);
 
     const [addpopup,setaddpopup]=useState(false)
+    const [bulkImportPopup, setBulkImportPopup] = useState(false)
+    const [bulkFile, setBulkFile] = useState(null)
+    const [bulkHotelId, setBulkHotelId] = useState("")
 
     const [coupand,setcoupand]=useState({
          hotel_id:"",
@@ -229,7 +297,9 @@ function Coupansmanage() {
           try {
           const result = await axios.patch(
             `${import.meta.env.VITE_API_URL}/coupan/updatecoupan`,
-            coupand,
+            coupand,{
+          headers: { Authorization: `Bearer ${token}` },
+        }
           );
           if (result.status === 200) {
             fetchcoupans();
@@ -244,6 +314,14 @@ function Coupansmanage() {
             setaddpopup(false)
           }
         } catch (err) {
+           if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
           console.log(err);
         }
         }
@@ -252,7 +330,9 @@ function Coupansmanage() {
                 
           const result = await axios.post(
             `${import.meta.env.VITE_API_URL}/coupan/addcoupan`,
-            coupand,
+            coupand,{
+          headers: { Authorization: `Bearer ${token}` },
+        }
           );
           if (result.status === 201) {
             fetchcoupans();
@@ -267,16 +347,95 @@ function Coupansmanage() {
             setaddpopup(false)
           }
         } catch (err) {
+           if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
           console.log(err);
         }
         }
 
     }
 
+    async function handleBulkImport(e) {
+      e.preventDefault();
+      if (!bulkHotelId) {
+        alert("Please select a hotel first.");
+        return;
+      }
+      if (!bulkFile) {
+        alert("Please select an excel file to upload.");
+        return;
+      }
+      const formData = new FormData();
+      formData.append("hotel_id", bulkHotelId);
+      formData.append("file", bulkFile);
+
+      try {
+        const result = await axios.post(`${import.meta.env.VITE_API_URL}/coupan/bulkimport`, formData, {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          },
+        });
+        if (result.status === 200) {
+          alert(`Success! Imported ${result.data.imported} coupons.`);
+          setBulkImportPopup(false);
+          setBulkFile(null);
+          setBulkHotelId("");
+          fetchcoupans();
+        }
+      } catch (err) {
+        if (err.status === 401) {
+          localStorage.removeItem("user")
+          localStorage.removeItem("userid")
+          localStorage.removeItem("token")
+          localStorage.removeItem("email")
+          localStorage.removeItem("theme")
+          navigate('/login')
+        }
+        alert("Error importing coupons: " + (err.response?.data?.message || err.message));
+        console.log(err);
+      }
+    }
+
    
   const filterdata=coupandata
+
+  const handleDownloadPDF = async () => {
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/download/pdf`,
+        { pdfdata: coupandata },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          responseType: 'blob',
+        }
+      );
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'coupans.pdf');
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+    } catch (error) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
+      console.error('Error downloading PDF:', error);
+    }
+  };
   
-  console.log(coupandata);
   
   return (
    <div className="manage-page w-full rounded-xl bg-white p-3 text-slate-800 shadow-sm dark:bg-slate-900 dark:text-slate-100">
@@ -336,12 +495,23 @@ function Coupansmanage() {
     </select>
               
             </div>
-             <button
+            <div className='flex gap-3'>
+               <button onClick={handleDownloadPDF} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 flex items-center gap-2">
+                <Download className="h-4 w-4" /> PDF
+              </button>
+              <button
+                className="rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                onClick={() => setBulkImportPopup(true)}
+              >
+                Bulk Import Excel
+              </button>
+              <button
               className="rounded-xl bg-linear-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
               onClick={()=>setaddpopup(true)}
             >
               + Add Coupans
             </button>
+            </div>  
           </div>
 
          <div className="space-y-4">
@@ -804,6 +974,47 @@ function Coupansmanage() {
   </div>
 )}
        
+{bulkImportPopup && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div className="relative w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+      <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-700">
+        <div>
+          <h2 className="text-xl font-bold text-slate-800 dark:text-white">Bulk Import Coupons</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Upload an Excel sheet to bulk import coupons.</p>
+        </div>
+        <button type="button" onClick={() => { setBulkImportPopup(false); setBulkFile(null); setBulkHotelId(""); }} className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-red-500 dark:hover:bg-slate-800">
+          ✕
+        </button>
+      </div>
+
+      <form onSubmit={handleBulkImport} className="p-6">
+        <div className="space-y-5">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Select Hotel</label>
+            <select value={bulkHotelId} onChange={(e) => setBulkHotelId(e.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-700 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+              <option value="">Select a hotel...</option>
+              {hoteldata.map((h) => <option key={h._id} value={h._id}>{h.hotelName}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Excel File (.xlsx)</label>
+            <input type="file" accept=".xlsx, .xls" onChange={(e) => setBulkFile(e.target.files[0])} className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-700 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+          </div>
+        </div>
+
+        <div className="mt-8 flex items-center justify-end gap-3 border-t border-slate-200 pt-5 dark:border-slate-700">
+          <button type="button" onClick={() => { setBulkImportPopup(false); setBulkFile(null); setBulkHotelId(""); }} className="rounded-xl border border-slate-300 px-5 py-2.5 font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800">
+            Cancel
+          </button>
+          <button type="submit" className="rounded-xl bg-linear-to-r from-emerald-600 to-teal-600 px-6 py-2.5 font-semibold text-white shadow transition hover:-translate-y-0.5 hover:shadow-lg">
+            Import Coupons
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
+
         </div>
   )
 }

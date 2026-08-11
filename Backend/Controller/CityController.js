@@ -44,112 +44,55 @@ exports.cityupdate=async (req,res)=>{
 
 exports.cityreadall=async (req,res)=>{
     try{
-        
- const {search,status,sort,districtsort,skip,limit}=req.query
- const searchVal = search || ""
- const cityPipeline = [];
+        const {search,status,sort,districtsort,skip,limit}=req.query;
+        const searchVal = search || "";
 
-// status 
- if (status) {
-  cityPipeline.push({
-    $match: {activestatus:status==="true" ? true : false}
-  });
-}
+        let matchQuery = {
+            cityname: { $regex: searchVal, $options: "i" }
+        };
 
-// Search by city name
-if (searchVal) {
-  cityPipeline.push({
-    $match: {
-      cityname: {
-        $regex: searchVal,
-        $options: "i"
-      }
-    }
-  });
-}
-
-
-// Sort cities
-if (sort) {
-     if(sort==="az") cityPipeline.push({$sort: {cityname:1}})
-         else if(sort==="za") cityPipeline.push({$sort: {cityname:-1}})
-        else if(sort==='newest') cityPipeline.push({$sort: {createdAt:1}})
-        else if(sort==='oldest') cityPipeline.push({$sort: {createdAt:-1}})
+        if (status !== undefined && status !== "") {
+            matchQuery.activestatus = status === "true";
         }
 
-const districtPipeline = [];
-
-// Filter district
-if (districtsort) {
-  districtPipeline.push({
-    $match: {
-      _id: new mongoose.Types.ObjectId(districtsort),
-      activestatus:true
-    }
-  });
-}
-
-districtPipeline.push({
-  $lookup: {
-    from: "cities",
-    let: { districtId: "$_id" },
-    pipeline: [
-      {
-        $match: {
-          $expr: {
-            $eq: ["$district_id", "$$districtId"]
-          }
+        if (districtsort) {
+            matchQuery.district_id = districtsort;
         }
-      },
-      ...cityPipeline
-    ],
-    as: "allcities"
-  }
-},
-  {$match: {
-      "allcities.0": { $exists: true }
-    }});
 
-const basePipeline = [
-  {
-    $match: { activestatus: true}
-    },
-  {
-    $lookup: {
-      from: "districts",
-      localField: "_id",
-      foreignField: "state_id",
-      pipeline: districtPipeline,
-      as: "alldistricts"
-    }
-  },
-  {$match: {
-      "alldistricts.0": { $exists: true }
-    }}
-];
+        let sorting = null;
+        if (sort === "az") sorting = { cityname: 1 };
+        else if (sort === "za") sorting = { cityname: -1 };
+        else if (sort === "newest") sorting = { createdAt: 1 };
+        else if (sort === "oldest") sorting = { createdAt: -1 };
 
-const countResult = await states.aggregate([...basePipeline, { $count: "totalcount" }]);
-const totalcount = countResult[0]?.totalcount || 0;
+        const totalcount = await cities.countDocuments(matchQuery);
 
-const pipeline = [...basePipeline];
-if (skip) pipeline.push({ $skip: parseInt(skip) });
-if (limit) pipeline.push({ $limit: parseInt(limit) });
+        let query = cities.find(matchQuery).populate({
+            path: "district_id",
+            populate: { path: "state_id" }
+        });
 
-const response = await states.aggregate(pipeline);
+        if (sorting) query = query.sort(sorting);
+        if (skip) query = query.skip(parseInt(skip));
+        if (limit) query = query.limit(parseInt(limit));
 
- return res.status(200).json({response, totalcount})
+        const response = await query;
+
+        return res.status(200).json({response, totalcount});
     }
     catch(err){
         console.log(err);
-        
-        return res.status(500).json({message:"internal server error"})
+        return res.status(500).json({message:"internal server error"});
     }
 }
 
 exports.cityreadone=async (req,res)=>{
     try{
      const id=req.params.id   
-     const response=await cities.findOne({_id:id}).populate("district_id")
+     const response=await cities.findOne({_id:id}).populate({
+         path: "district_id",
+         populate: { path: "state_id" }
+     })
      return res.status(200).json({response})
     }
     catch(err){

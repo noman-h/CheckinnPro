@@ -45,12 +45,14 @@ app.use('/tempbook',TempbookRoute)
 const ReviewRoute=require('./Routes/ReviewRoute')
 app.use('/review',ReviewRoute)
 
+const PdfRoute=require('./Routes/PdfRoute')
+app.use('/download',PdfRoute)
 
 const {bookingcancelschedule}=require('./Utils/Cronbookingcancel')
 bookingcancelschedule()
 
 
-
-app.listen(process.env.port,()=>{
-    console.log('running server port',process.env.port)
+const port=process.env.PORT || 8080;
+app.listen(port,()=>{
+    console.log('running server port',port)
 })

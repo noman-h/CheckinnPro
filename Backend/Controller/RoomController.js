@@ -3,6 +3,7 @@ const hotels = require("../Model/HotelModel");
 const admins = require("../Model/AdminModel");
 const { uploadimage } = require("../Utils/FileUpload");
 const { default: mongoose } = require("mongoose");
+const xlsx = require("xlsx");
 
 exports.roomadd = async (req, res) => {
   try {
@@ -71,9 +72,10 @@ exports.roomadd = async (req, res) => {
 
 exports.roomupdate = async (req, res) => {
   try {
-    let { _id, hotel_id, roomno, roomtype, price, facilities } = req.body;
+    let { hotel_id, roomno, roomtype, price, facilities } = req.body;
+    const {roomid}=req.params
 
-    if (!(_id && hotel_id && roomno && roomtype && price && facilities)) {
+    if (!(roomid && hotel_id && roomno && roomtype && price && facilities)) {
       return res
         .status(400)
         .json({ message: "All fields including _id are required." });
@@ -83,7 +85,7 @@ exports.roomupdate = async (req, res) => {
       facilities = JSON.parse(facilities);
     }
 
-    const existing = await rooms.findById(_id);
+    const existing = await rooms.findById(roomid);
     if (!existing) {
       return res.status(404).json({ message: "Room not found." });
     }
@@ -104,7 +106,7 @@ exports.roomupdate = async (req, res) => {
     }
 
     const updatedRoom = await rooms.findByIdAndUpdate(
-      _id,
+      roomid,
       {
         hotel_id,
         roomno,
@@ -145,7 +147,7 @@ exports.roomreadall = async (req, res) => {
 
 exports.roomreadhotelall = async (req, res) => {
   try {
-    const { search, status, skip, limit } = req.query;
+    const { search, status, sort, priceRange, price, roomType, amenities, facilities, skip, limit } = req.query;
 
     const { hotelEmail } = req.params;
 
@@ -156,16 +158,81 @@ exports.roomreadhotelall = async (req, res) => {
 
     const matchQuery = {
       hotel_id: hotel._id,
-      activestatus: status === "active" ? true : false,
-      $or: [
-        { roomno: { $regex: search || "", $options: "i" } },
-        { roomtype: { $regex: search || "", $options: "i" } },
-      ],
+      activestatus: status === "active" ? true : status === "inactive" ? false : true,
     };
+
+    // Search filter
+    if (search) {
+      matchQuery.$or = [
+        { roomno: { $regex: search, $options: "i" } },
+        { roomtype: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    // Room Type filter
+    if (roomType && roomType !== "all") {
+      matchQuery.roomtype = roomType;
+    }
+
+    // Price Range filter
+    const selectedPrice = priceRange || price;
+    if (selectedPrice && selectedPrice !== "all") {
+      if (selectedPrice === "0-1000") {
+        matchQuery.price = { $gte: 0, $lte: 1000 };
+      } else if (selectedPrice === "1000-2000") {
+        matchQuery.price = { $gte: 1000, $lte: 2000 };
+      } else if (selectedPrice === "2000+") {
+        matchQuery.price = { $gte: 2000 };
+      }
+    }
+
+    // Amenities / Facilities filter
+    if (amenities) {
+      const list = amenities.split(",").map(item => item.trim()).filter(Boolean);
+      list.forEach(item => {
+        matchQuery[`facilities.${item}`] = true;
+      });
+    }
+
+    if (facilities) {
+      try {
+        const parsedFac = typeof facilities === "string" ? JSON.parse(facilities) : facilities;
+        Object.keys(parsedFac).forEach(key => {
+          if (parsedFac[key] === true || parsedFac[key] === "true") {
+            matchQuery[`facilities.${key}`] = true;
+          }
+        });
+      } catch (e) {
+        // ignore JSON parse error
+      }
+    }
+
+    // Direct facility flag query support
+    const facilityKeys = [
+      "wifi", "ac", "tv", "minibar", "breakfastincluded",
+      "parking", "roomservice", "laundry", "balcony", "smokingAllowed"
+    ];
+    facilityKeys.forEach(key => {
+      if (req.query[key] === "true" || req.query[key] === true) {
+        matchQuery[`facilities.${key}`] = true;
+      }
+    });
+
+    // Sorting options
+    let sortOptions = { createdAt: -1 };
+    if (sort === "az" || sort === "price_asc" || sort === "low_to_high") {
+      sortOptions = { price: 1 };
+    } else if (sort === "za" || sort === "price_desc" || sort === "high_to_low") {
+      sortOptions = { price: -1 };
+    } else if (sort === "newest") {
+      sortOptions = { createdAt: -1 };
+    } else if (sort === "oldest") {
+      sortOptions = { createdAt: 1 };
+    }
 
     const totalcount = await rooms.countDocuments(matchQuery);
 
-    let query = rooms.find(matchQuery).populate("hotel_id").sort({ createdAt: -1 });
+    let query = rooms.find(matchQuery).populate("hotel_id").sort(sortOptions);
 
     if (skip) query = query.skip(parseInt(skip));
     if (limit) query = query.limit(parseInt(limit));
@@ -181,16 +248,17 @@ exports.roomreadhotelall = async (req, res) => {
 
 exports.roomreadadminhotelall = async (req, res) => {
   try {
-    const { search, status, sort ,limit ,skip } = req.query;
+    const { search, status, sort, limit, skip } = req.query;
 
-    
+
     const { adminemail } = req.params;
 
     const admin = await admins.findOne({ owneremail: adminemail });
 
-    const hotelMatch = { admin_id: admin._id,
-                        activeStatus:true
-                        };
+    const hotelMatch = {
+      admin_id: admin._id,
+      activeStatus: true
+    };
 
     if (sort) { hotelMatch._id = new mongoose.Types.ObjectId(sort); }
 
@@ -281,3 +349,68 @@ exports.roomrecoverdelete = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
+exports.roombulkimport = async (req, res) => {
+    try {
+        const { hotel_id } = req.body;
+        if (!hotel_id) {
+            return res.status(400).json({ message: "hotel_id is required" });
+        }
+
+        if (!req.files || !req.files.file) {
+            return res.status(400).json({ message: "No file uploaded" });
+        }
+
+        const file = req.files.file;
+        const workbook = xlsx.read(file.data, { type: 'buffer' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const jsonData = xlsx.utils.sheet_to_json(sheet);
+
+        if (!jsonData || jsonData.length === 0) {
+            return res.status(400).json({ message: "File is empty or invalid format" });
+        }
+
+        const validRooms = [];
+        const errors = [];
+
+        for (let i = 0; i < jsonData.length; i++) {
+            const row = jsonData[i];
+            const { roomno, roomtype, price } = row;
+
+            if (!roomno || !roomtype || !price) {
+                errors.push(`Row ${i + 2}: Missing required fields (roomno, roomtype, price)`);
+                continue;
+            }
+
+            const existing = await rooms.findOne({ roomno, hotel_id });
+            if (existing) {
+                errors.push(`Row ${i + 2}: Room ${roomno} already exists in this hotel`);
+                continue;
+            }
+
+            validRooms.push({
+                hotel_id,
+                roomno: String(roomno),
+                roomtype: String(roomtype).toLowerCase(),
+                price: Number(price),
+                isavailable: true,
+                activestatus: true
+            });
+        }
+
+        if (validRooms.length > 0) {
+            await rooms.insertMany(validRooms);
+        }
+
+        return res.status(200).json({
+            message: "Bulk import completed",
+            imported: validRooms.length,
+            errors: errors
+        });
+
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+}

@@ -1,10 +1,12 @@
 import axios from 'axios';
 import React, { useEffect, useState } from 'react'
 import UseDebouncing from '../Hooks/UseDebouncing';
+import { useNavigate } from 'react-router-dom';
+import { Download } from 'lucide-react';
 
 function Statemanage() {
 
-
+ const navigate=useNavigate()
   const [search, setsearch] = useState("")
   const [sort, setsort] = useState("")
 
@@ -27,11 +29,16 @@ function Statemanage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalStates, setTotalStates] = useState(0);
 
+  const token=localStorage.getItem('token')
   async function fetchstates() {
     try {
       const skip = (currentPage - 1) * limit;
       const result = await axios.get(
-        `${import.meta.env.VITE_API_URL}/location/getallstate?search=${debouncedvalue}&status=${(status === "active" ? true : false)}&sort=${sort}&skip=${skip}&limit=${limit}`,
+        `${import.meta.env.VITE_API_URL}/location/getallstate?search=${debouncedvalue}&status=${(status === "active" ? true : false)}&sort=${sort}&skip=${skip}&limit=${limit}`,{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        }
       );
 
       const responseData = result?.data?.response || [];
@@ -41,6 +48,14 @@ function Statemanage() {
       setTotalStates(count);
       setTotalPages(Math.ceil(count / limit) || 1);
     } catch (err) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       console.log(err);
     }
   }
@@ -61,7 +76,11 @@ function Statemanage() {
         try {
           const result = await axios.patch(
             `${import.meta.env.VITE_API_URL}/location/updatestate`,
-            stated,
+            stated,{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        }
           );
           if (result.status === 200) {
             fetchstates();
@@ -69,6 +88,14 @@ function Statemanage() {
             setpopup("");
           }
         } catch (err) {
+           if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
           console.log(err);
         }
       }
@@ -77,7 +104,11 @@ function Statemanage() {
 
           const result = await axios.post(
             `${import.meta.env.VITE_API_URL}/location/addstate`,
-            stated,
+            stated,{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        }
           );
           if (result.status === 201) {
             fetchstates();
@@ -85,6 +116,14 @@ function Statemanage() {
             setpopup("");
           }
         } catch (err) {
+           if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
           console.log(err);
         }
       }
@@ -93,39 +132,75 @@ function Statemanage() {
 
   async function handledeactivate(id) {
     try {
-      const result = await axios.patch(`${import.meta.env.VITE_API_URL}/location/softdeletestate/${id}`)
+      const result = await axios.patch(`${import.meta.env.VITE_API_URL}/location/softdeletestate/${id}`,{},{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        })
 
       if (result.status === 200) {
         fetchstates()
       }
     }
     catch (err) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       console.log(err)
     }
   }
 
   async function handlerestore(id) {
     try {
-      const result = await axios.patch(`${import.meta.env.VITE_API_URL}/location/recoverdeletestate/${id}`)
+      const result = await axios.patch(`${import.meta.env.VITE_API_URL}/location/recoverdeletestate/${id}`,{},{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        })
 
       if (result.status === 200) {
         fetchstates()
       }
     }
     catch (err) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       console.log(err)
     }
   }
 
   async function handledelete(id) {
     try {
-      const result = await axios.delete(`${import.meta.env.VITE_API_URL}/location/deletestate/${id}`)
+      const result = await axios.delete(`${import.meta.env.VITE_API_URL}/location/deletestate/${id}`,{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        })
 
       if (result.status === 200) {
         fetchstates()
       }
     }
     catch (err) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       console.log(err)
     }
   }
@@ -134,10 +209,22 @@ function Statemanage() {
 
   async function handleview(id) {
     try {
-      const result = await axios.get(`${import.meta.env.VITE_API_URL}/location/getonestate/${id}`)
+      const result = await axios.get(`${import.meta.env.VITE_API_URL}/location/getonestate/${id}`,{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        })
       setview(result?.data?.response)
     }
     catch (err) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       console.log(err)
     }
   }
@@ -171,6 +258,35 @@ function Statemanage() {
 
   const filteredstate = statedata
 
+    const handleDownloadPDF = async () => {
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/download/pdf`,
+        { pdfdata: statedata },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          responseType: 'blob',
+        }
+      );
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'states.pdf');
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+    } catch (error) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
+      console.error('Error downloading PDF:', error);
+    }
+  };
 
 
   return (
@@ -219,12 +335,19 @@ function Statemanage() {
           </select>
 
         </div>
+
+        <div className='flex gap-3'>
+           <button onClick={handleDownloadPDF} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 flex items-center gap-2">
+                <Download className="h-4 w-4" /> PDF
+              </button>
         <button
           className="rounded-xl bg-linear-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
           onClick={() => setpopup("stateadd")}
         >
           + Add State
         </button>
+        </div>
+        
       </div>
 
       <div className="space-y-4">

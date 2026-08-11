@@ -11,15 +11,14 @@ const transporter=nodemailer.createTransport({
 exports.mailsend= async (sendermail,sendersubject,senderhtml)=>{
     try{
 
-        // const info=await transporter.sendMail({
-        //     from:process.env.mailuser,
-        //     to:sendermail,
-        //     subject:sendersubject,
-        //     html:senderhtml
-        // }) 
+        const info=await transporter.sendMail({
+            from:process.env.mailuser,
+            to:sendermail,
+            subject:sendersubject,
+            html:senderhtml
+        }) 
 
-        // return info.messageId
-        return "fghfgdfsvfbgfdbv"
+        return info.messageId
     }
     catch(err){
          console.log(err)

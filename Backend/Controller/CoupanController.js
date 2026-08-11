@@ -3,6 +3,7 @@ const hotels=require('../Model/HotelModel')
 const rooms=require('../Model/RoomModel')
 const admins=require('../Model/AdminModel')
 const { default: mongoose } = require('mongoose');
+const xlsx = require('xlsx');
 
 exports.coupanadd=async (req,res)=>{
     try{
@@ -202,7 +203,84 @@ exports.coupanrecoverdelete = async (req,res)=>{
     }
 }
 
+exports.coupanbulkimport = async (req, res) => {
+    try {
+        const { hotel_id } = req.body;
+        if (!hotel_id) {
+            return res.status(400).json({ message: "hotel_id is required" });
+        }
 
+        if (!req.files || !req.files.file) {
+            return res.status(400).json({ message: "No file uploaded" });
+        }
 
+        const file = req.files.file;
+        const workbook = xlsx.read(file.data, { type: 'buffer' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const jsonData = xlsx.utils.sheet_to_json(sheet);
 
+        if (!jsonData || jsonData.length === 0) {
+            return res.status(400).json({ message: "File is empty or invalid format" });
+        }
 
+        const validCoupons = [];
+        const errors = [];
+
+        for (let i = 0; i < jsonData.length; i++) {
+            const row = jsonData[i];
+            const { coupancode, discount, startdate, enddate, maxprice } = row;
+
+            if (!coupancode || !discount || !startdate || !enddate || !maxprice) {
+                errors.push(`Row ${i + 2}: Missing required fields`);
+                continue;
+            }
+
+            // check if coupon already exists
+            const existing = await coupans.findOne({ coupancode });
+            if (existing) {
+                errors.push(`Row ${i + 2}: Coupon ${coupancode} already exists`);
+                continue;
+            }
+
+            // process dates if they are excel serial numbers
+            let sDate = startdate;
+            let eDate = enddate;
+            
+            // basic excel date to js date conversion if it's a number
+            if(typeof sDate === 'number') {
+                sDate = new Date(Math.round((sDate - 25569) * 86400 * 1000));
+            } else {
+                sDate = new Date(sDate);
+            }
+            if(typeof eDate === 'number') {
+                eDate = new Date(Math.round((eDate - 25569) * 86400 * 1000));
+            } else {
+                eDate = new Date(eDate);
+            }
+
+            validCoupons.push({
+                hotel_id,
+                coupancode: String(coupancode),
+                discount: Number(discount),
+                startdate: sDate,
+                enddate: eDate,
+                maxprice: Number(maxprice)
+            });
+        }
+
+        if (validCoupons.length > 0) {
+            await coupans.insertMany(validCoupons);
+        }
+
+        return res.status(200).json({
+            message: "Bulk import completed",
+            imported: validCoupons.length,
+            errors: errors
+        });
+
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+}

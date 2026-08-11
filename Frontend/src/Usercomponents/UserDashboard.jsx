@@ -276,7 +276,7 @@ function UserDashboard() {
     <div className="min-h-screen bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100">
       
       {/* HERO BANNER SECTION */}
-      <header className="relative border-b border-slate-200/80 bg-gradient-to-b from-indigo-900/10 via-slate-50 to-slate-100/80 py-8 shadow-xs dark:border-slate-800/80 dark:from-slate-900 dark:via-slate-900/90 dark:to-slate-950 sm:py-12 md:py-16">
+      <header className="relative border-b border-slate-200/80 bg-linear-to-b from-indigo-900/10 via-slate-50 to-slate-100/80 py-8 shadow-xs dark:border-slate-800/80 dark:from-slate-900 dark:via-slate-900/90 dark:to-slate-950 sm:py-12 md:py-16">
         <div className="w-full px-4 sm:px-6 md:px-8 xl:px-12">
           <div className="mx-auto flex max-w-3xl flex-col items-center justify-center space-y-4 text-center sm:space-y-5">
             
@@ -285,7 +285,7 @@ function UserDashboard() {
               <span>Book Premier Hotels & Suites</span>
             </div>
 
-            <h1 className="bg-gradient-to-r from-emerald-600 via-teal-500 to-indigo-600 bg-clip-text text-2xl font-black tracking-tight text-transparent sm:text-4xl lg:text-5xl">
+            <h1 className="bg-linear-to-r from-emerald-600 via-teal-500 to-indigo-600 bg-clip-text text-2xl font-black tracking-tight text-transparent sm:text-4xl lg:text-5xl">
               Discover & Reserve Perfect Stays
             </h1>
             <p className="max-w-xl text-xs font-medium text-slate-600 dark:text-slate-400 sm:text-sm md:text-base">

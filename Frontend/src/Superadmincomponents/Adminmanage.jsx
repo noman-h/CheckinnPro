@@ -2,6 +2,7 @@ import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import UseDebouncing from '../Hooks/UseDebouncing';
+import { Download } from 'lucide-react';
 
 function Adminmanage() {
 
@@ -20,11 +21,17 @@ function Adminmanage() {
 
     const [admindata, setadmindata] = useState([]);
 
+    const token=localStorage.getItem('token')
+
     async function fetchadmins() {
       try {
         const skip = (currentPage - 1) * limit;
         const result = await axios.get(
-          `${import.meta.env.VITE_API_URL}/admin/getalladmins?search=${debouncedsearch}&sort=${sort}&status=${status}&skip=${skip}&limit=${limit}`,
+          `${import.meta.env.VITE_API_URL}/admin/getalladmins?search=${debouncedsearch}&sort=${sort}&status=${status}&skip=${skip}&limit=${limit}`,{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        }
         );
   
         const responseData = result?.data?.response || [];
@@ -34,6 +41,14 @@ function Adminmanage() {
         setTotalAdmins(count);
         setTotalPages(Math.ceil(count / limit) || 1);
       } catch (err) {
+        if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
         console.log(err);
       }
     }
@@ -41,46 +56,86 @@ function Adminmanage() {
 
   async function handledeactivate(id){
            try{
-              const result=await axios.patch(`${import.meta.env.VITE_API_URL}/admin/softdeleteadmin/${id}`)
+              const result=await axios.patch(`${import.meta.env.VITE_API_URL}/admin/softdeleteadmin/${id}`,{},{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        })
 
              if(result.status===200){
                 fetchadmins()
              }
            }
            catch(err){
+            if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
              console.log(err)
            }
       }
 
       async function handlerestore(id){
            try{
-              const result=await axios.patch(`${import.meta.env.VITE_API_URL}/admin/recoverdeleteadmin/${id}`)
+              const result=await axios.patch(`${import.meta.env.VITE_API_URL}/admin/recoverdeleteadmin/${id}`,{},{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        })
 
              if(result.status===200){
                 fetchadmins()
              }
            }
            catch(err){
+            if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
              console.log(err)
            }
       }
 
       async function handledelete(id){
            try{
-              const result=await axios.delete(`${import.meta.env.VITE_API_URL}/admin/deleteadmin/${id}`)
+              const result=await axios.delete(`${import.meta.env.VITE_API_URL}/admin/deleteadmin/${id}`,{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        })
 
              if(result.status===200){
                 fetchadmins()
              }
            }
            catch(err){
+            if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
              console.log(err)
            }
       }
 
       async function handleapprove(item) {
             try{
-               const result=await axios.patch(`${import.meta.env.VITE_API_URL}/admin/approveadmin`,{...item})
+               const result=await axios.patch(`${import.meta.env.VITE_API_URL}/admin/approveadmin`,{...item},{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        })
 
                console.log(result);
                if(result.status===200){
@@ -89,6 +144,14 @@ function Adminmanage() {
 
             }
             catch(err){
+              if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
                alert(err?.response?.data?.message || "something error please retry")
                
             }
@@ -105,7 +168,11 @@ function Adminmanage() {
            const item=Reason.item
            const reason=Reason.reason
             try{
-               const result=await axios.patch(`${import.meta.env.VITE_API_URL}/admin/rejectadmin`,{...item,reason})
+               const result=await axios.patch(`${import.meta.env.VITE_API_URL}/admin/rejectadmin`,{...item,reason},{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        })
 
                console.log(result);
                if(result.status===200){
@@ -118,6 +185,14 @@ function Adminmanage() {
 
             }
             catch(err){
+              if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
                   alert(err)
                   
             }
@@ -127,11 +202,23 @@ function Adminmanage() {
 
      async function handleview(id){
         try{
-           const result=await axios.get(`${import.meta.env.VITE_API_URL}/admin/getoneadmin/${id}`)
+           const result=await axios.get(`${import.meta.env.VITE_API_URL}/admin/getoneadmin/${id}`,{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        })
 
            setview(result?.data?.response)
         }
         catch(err){
+          if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
           console.log(err);
           
         }
@@ -166,7 +253,35 @@ function Adminmanage() {
 
     const filteredadmin = admindata;
 
-  console.log(admindata);
+  const handleDownloadPDF = async () => {
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/download/pdf`,
+        { pdfdata: admindata },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          responseType: 'blob',
+        }
+      );
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'admin.pdf');
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+    } catch (error) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
+      console.error('Error downloading PDF:', error);
+    }
+  };
   
 
   
@@ -235,12 +350,17 @@ function Adminmanage() {
                 <option value="oldest">Oldest</option>
               </select>
             </div>
+            <div className='flex gap-3'>
+               <button onClick={handleDownloadPDF} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 flex items-center gap-2">
+                <Download className="h-4 w-4" /> PDF
+              </button>
             <button
               className="rounded-xl bg-linear-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
               onClick={() => navigate('/adminaddform')}
             >
               + Add Admin
             </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">

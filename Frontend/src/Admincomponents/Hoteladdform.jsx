@@ -11,7 +11,7 @@ function Hoteladdform() {
 
   const adminemail=localStorage.getItem("email")
 
-
+ const token=localStorage.getItem('token')
   const [citydata, setcitydata] = useState([]);
 
   const [hoteld, sethoteld] = useState({
@@ -36,6 +36,7 @@ function Hoteladdform() {
     try {
       const result = await axios.get(`${BASE_URL}/location/getallcity`);
       setcitydata(result?.data?.response || []);
+      
     } catch (err) {
       console.log(err);
     }
@@ -44,11 +45,21 @@ function Hoteladdform() {
   const [admindata,setadmindata]=useState([])
   async function fetchadmins() {
     try {
-      const result = await axios.get(`${BASE_URL}/admin/getalladmins`);
+      const result = await axios.get(`${BASE_URL}/admin/getalladmins`,{
+          headers: { Authorization: `Bearer ${token}` },
+        });
       setadmindata(result?.data?.response || []);
       console.log("<<<",result);
       
     } catch (err) {
+      if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       console.log(err);
     }
   }
@@ -62,7 +73,9 @@ console.log(hoteld);
   const [checkdata,setcheckdata]=useState(null)
   async function handlecheck() {
          try{
-            const result = await axios.get(`${BASE_URL}/hotel/getcheckone/${checkid}`);
+            const result = await axios.get(`${BASE_URL}/hotel/getcheckone/${checkid}`,{
+          headers: { Authorization: `Bearer ${token}` },
+        });
            console.log(result);
            
             if(result.status===200){
@@ -73,6 +86,14 @@ console.log(hoteld);
             }
          }
          catch(err){
+          if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
           console.log(error);
          }
   }
@@ -88,7 +109,9 @@ console.log(hoteld);
     const obj={}
     console.log("hey");
      try{
-        const result=await axios.patch(`${import.meta.env.VITE_API_URL}/hotel/hotelotpsend`,{email:checkdata.hotelEmail})
+        const result=await axios.patch(`${import.meta.env.VITE_API_URL}/hotel/hotelotpsend`,{email:checkdata.hotelEmail},{
+          headers: { Authorization: `Bearer ${token}` },
+        })
         console.log("<<<",result);
         
        if(result.status===200){
@@ -96,7 +119,14 @@ console.log(hoteld);
        } 
     }
     catch(err){
-      console.log(err);
+      if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       
       if(err.status===404){
         obj.email="email not found"
@@ -117,7 +147,9 @@ console.log(hoteld);
       if(Object.keys(obj).length===0){
      try{
       
-        const result=await axios.patch(`${import.meta.env.VITE_API_URL}/hotel/hotelotpverify`,{email:checkdata.hotelEmail,otp})
+        const result=await axios.patch(`${import.meta.env.VITE_API_URL}/hotel/hotelotpverify`,{email:checkdata.hotelEmail,otp},{
+          headers: { Authorization: `Bearer ${token}` },
+        })
         if(result.status===200){
            sethoteld({...checkdata,CityId:checkdata?.CityId?._id})
            setshowOtpModal(false)
@@ -126,9 +158,16 @@ console.log(hoteld);
        
     }
     catch(err){   
-      console.log(err);
-         
       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
+         
+      if(err.status===400){
         obj.otp="wrong otp"
       }
       if(err.status===403){
@@ -158,8 +197,9 @@ console.log(hoteld);
 
     
      try{
-        const result=await axios.post(`${import.meta.env.VITE_API_URL}/hotel/hotelemailotpsend`,{email:hoteld.hotelEmail})
-        console.log("<<<",result);
+        const result=await axios.post(`${import.meta.env.VITE_API_URL}/hotel/hotelemailotpsend`,{email:hoteld.hotelEmail},{
+          headers: { Authorization: `Bearer ${token}` },
+        })
         
        if(result.status===200){
          
@@ -167,7 +207,15 @@ console.log(hoteld);
        } 
     }
     catch(err){
-      console.log(err.message);
+
+      if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       
       if(err.status===404){
         obj.email="email not found"
@@ -190,7 +238,9 @@ console.log(hoteld);
       if(Object.keys(obj).length===0){
         setotpverifying(true)
      try{
-        const result=await axios.patch(`${import.meta.env.VITE_API_URL}/hotel/hotelotpverify`,{email:hoteld.hotelEmail,otp})
+        const result=await axios.patch(`${import.meta.env.VITE_API_URL}/hotel/hotelotpverify`,{email:hoteld.hotelEmail,otp},{
+          headers: { Authorization: `Bearer ${token}` },
+        })
         if(result.status===200){
            setemailVerified(true)
            setshowemailOtpModal(false)
@@ -200,8 +250,16 @@ console.log(hoteld);
     }
     catch(err){   
       console.log(err);
-         
       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
+         
+      if(err.status===400){
         obj.otp="wrong otp"
       }
       if(err.status===403){
@@ -229,23 +287,11 @@ console.log(hoteld);
 
 
 
-  // citydata is grouped by district ({ districtname, outputArrayField: [...] }),
-  // same shape used elsewhere in this app — flatten it into pickable options,
-  // active cities only.
-  const cityoptions = citydata.map((state) => {
-    const districts = state.alldistricts.filter(
-      (district) => district.activestatus
-    );
-
-    return districts.map((district) =>
-      district.allcities
-        .filter((city) => city.activestatus)
-        .map((city) => (
-          <option key={city._id} value={city._id}>
-          {city.cityname} ({district.districtname})  ({state.statename})   
+  const cityoptions = citydata.map((city) => {
+       return  <option key={city._id} value={city._id}>
+          {city.cityname} ({city?.district_id?.districtname})  ({city.district_id.state_id.statename})   
           </option>
-        ))
-    );
+   
   });
 
 
@@ -308,7 +354,8 @@ const result=await axios.post(
   formData,
   {
     headers: {
-      "Content-Type": "multipart/form-data",
+    Authorization: `Bearer ${token}`,  
+    "Content-Type": "multipart/form-data",
     },
   }
 );
@@ -328,6 +375,14 @@ const result=await axios.post(
         });
       }
     } catch (err) {
+      if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       console.log(err);
       seterrors({
         form:
@@ -353,6 +408,7 @@ const result=await axios.post(
   formData,
   {
     headers: {
+      Authorization: `Bearer ${token}`,
       "Content-Type": "multipart/form-data",
     },
   }
@@ -374,6 +430,15 @@ const result=await axios.post(
       }
     } catch (err) {
       console.log(err);
+      if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
+
       seterrors({
         form:
           err?.response?.data?.message ||
@@ -399,6 +464,7 @@ const result=await axios.post(
   formData,
   {
     headers: {
+       Authorization: `Bearer ${token}`,
       "Content-Type": "multipart/form-data",
     },
   }
@@ -420,6 +486,15 @@ const result=await axios.post(
         setemailVerified(false)
       }
     } catch (err) {
+      if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
+
       console.log(err);
       seterrors({
         form:

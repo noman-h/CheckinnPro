@@ -102,7 +102,7 @@ exports.getalladminbookings = async (req, res) => {
 
 exports.getallhotelbookings = async (req, res) => {
     try {
-        const { search, sort, limit, skip } = req.query
+        const { search = '', sort, limit, skip } = req.query
 
         let sorting
         if (sort === "newest") sorting = { $sort: { checkIn: -1 } }
@@ -162,20 +162,91 @@ exports.getallhotelbookings = async (req, res) => {
 
 exports.allbooking = async (req, res) => {
     try {
+        const { search = '', sort = 'newest', range = 'alltime', startDate, endDate, skip, limit } = req.query;
 
-        const result = await booking.find().populate('userId').populate('roomId')
-        if (!result) {
-            return res.status(404).json({ message: "booking not found" })
+        // --- Date Range Filter ---
+        const now = new Date();
+        let dateFilter = {};
+        if (range === 'week') {
+            const from = new Date();
+            from.setDate(now.getDate() - 7);
+            from.setHours(0, 0, 0, 0);
+            dateFilter = { createdAt: { $gte: from } };
+        } else if (range === '6months') {
+            const from = new Date();
+            from.setMonth(now.getMonth() - 6);
+            from.setHours(0, 0, 0, 0);
+            dateFilter = { createdAt: { $gte: from } };
+        } else if (range === 'custom' && startDate && endDate) {
+            const from = new Date(startDate);
+            from.setHours(0, 0, 0, 0);
+            const to = new Date(endDate);
+            to.setHours(23, 59, 59, 999);
+            dateFilter = { createdAt: { $gte: from, $lte: to } };
         }
 
-        return res.status(200).json({ result })
+        // --- Sort ---
+        let sorting = { createdAt: -1 };
+        if (sort === 'oldest') sorting = { createdAt: 1 };
+        else if (sort === 'highprice') sorting = { totalPrice: -1 };
+        else if (sort === 'lowprice') sorting = { totalPrice: 1 };
+
+        // --- Build Aggregation Pipeline ---
+        const pipeline = [
+            { $match: dateFilter },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'userId',
+                    foreignField: '_id',
+                    as: 'userId'
+                }
+            },
+            { $unwind: { path: '$userId', preserveNullAndEmptyArrays: true } },
+            {
+                $lookup: {
+                    from: 'rooms',
+                    localField: 'roomId',
+                    foreignField: '_id',
+                    as: 'roomId'
+                }
+            },
+            { $unwind: { path: '$roomId', preserveNullAndEmptyArrays: true } },
+        ];
+
+        // --- Search Filter (after lookup so we can search user name) ---
+        if (search) {
+            const searchRegex = { $regex: search, $options: 'i' };
+            pipeline.push({
+                $match: {
+                    $or: [
+                        { 'userId.name': searchRegex },
+                        { 'userId.email': searchRegex },
+                        { 'bookingstatus': searchRegex },
+                    ]
+                }
+            });
+        }
+
+        // Count before pagination
+        const countResult = await booking.aggregate([...pipeline, { $count: 'totalcount' }]);
+        const totalcount = countResult[0]?.totalcount || 0;
+
+        // Sort + Paginate
+        pipeline.push({ $sort: sorting });
+        if (skip) pipeline.push({ $skip: parseInt(skip) });
+        if (limit) pipeline.push({ $limit: parseInt(limit) });
+
+        const result = await booking.aggregate(pipeline);
+
+        return res.status(200).json({ result, totalcount });
     }
     catch (err) {
         console.log(err);
-
-        return res.status(500).json({ message: "internal server error" })
+        return res.status(500).json({ message: "internal server error" });
     }
 }
+
 
 exports.bookingview = async (req, res) => {
     try {
@@ -223,7 +294,7 @@ exports.userbookings = async (req, res) => {
     try {
         const { userId } = req.params
         if (!userId) {
-            return res.status(400).json({ message: "bad request no book id" })
+            return res.status(400).json({ message: "bad request no user id" })
         }
 
         const user = await users.findById(userId)
@@ -231,7 +302,45 @@ exports.userbookings = async (req, res) => {
             return res.status(404).json({ message: "user not found" })
         }
 
-        const result = await booking.find({ userId })
+        const { range, startDate, endDate } = req.query;
+
+        let query = { userId };
+
+        const now = new Date();
+
+        if (range === '1week') {
+            const oneWeekAgo = new Date();
+            oneWeekAgo.setDate(now.getDate() - 7);
+            oneWeekAgo.setHours(0, 0, 0, 0);
+            query.checkIn = { $gte: oneWeekAgo };
+        } else if (range === '6month' || range === '6months') {
+            const sixMonthsAgo = new Date();
+            sixMonthsAgo.setMonth(now.getMonth() - 6);
+            sixMonthsAgo.setHours(0, 0, 0, 0);
+            query.checkIn = { $gte: sixMonthsAgo };
+        } else if (range === '1year' || range === 'year') {
+            const oneYearAgo = new Date();
+            oneYearAgo.setFullYear(now.getFullYear() - 1);
+            oneYearAgo.setHours(0, 0, 0, 0);
+            query.checkIn = { $gte: oneYearAgo };
+        } else if (range === 'custom' || (startDate && endDate)) {
+            const dateFilter = {};
+            if (startDate) {
+                const sDate = new Date(startDate);
+                sDate.setHours(0, 0, 0, 0);
+                dateFilter.$gte = sDate;
+            }
+            if (endDate) {
+                const eDate = new Date(endDate);
+                eDate.setHours(23, 59, 59, 999);
+                dateFilter.$lte = eDate;
+            }
+            if (Object.keys(dateFilter).length > 0) {
+                query.checkIn = dateFilter;
+            }
+        }
+
+        const result = await booking.find(query)
             .populate("userId")
             .populate({
                 path: "roomId",
@@ -340,3 +449,4 @@ exports.bookingreview = async (req, res) => {
         return res.status(500).json({ message: "internal server error" })
     }
 }
+

@@ -1,9 +1,12 @@
 import axios from 'axios';
 import React, { useEffect, useState } from 'react'
 import UseDebouncing from '../Hooks/UseDebouncing';
+import { useNavigate } from 'react-router-dom';
+import { Download } from 'lucide-react';
 
 function Citymanage() {
 
+     const navigate=useNavigate()
       const [status, setstatus] = useState("active");
       const [search,setsearch]=useState("")
       const [sort,setsort]=useState("")
@@ -30,15 +33,28 @@ function Citymanage() {
   const [totalCities, setTotalCities] = useState(0);
 
   
+  const token=localStorage.getItem('token')
   
     async function fetchdistricts() {
     try {
       const result = await axios.get(
-        `${import.meta.env.VITE_API_URL}/location/getalldistrict?search&&status=true&&sort&&statesort`,
+        `${import.meta.env.VITE_API_URL}/location/getalldistrict?search&&status=true&&sort&&statesort`,{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        }
       );
 
       setdistrictdata(result?.data?.response || []);
     } catch (err) {
+      if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       console.log(err);
     }
   }
@@ -83,6 +99,14 @@ function Citymanage() {
             setpopup("");
           }
         } catch (err) {
+          if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
           console.log(err);
         }
          } 
@@ -90,7 +114,11 @@ function Citymanage() {
             try {
           const result = await axios.post(
             `${import.meta.env.VITE_API_URL}/location/addcity`,
-            cityd,
+            cityd,{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        }
           );
           if (result.status === 201) {
             fetchcity();
@@ -98,6 +126,14 @@ function Citymanage() {
             setpopup(false);
           }
         } catch (err) {
+          if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
           console.log(err);
         }
         }
@@ -106,39 +142,75 @@ function Citymanage() {
 
       async function handledeactivate(id){
            try{
-              const result=await axios.patch(`${import.meta.env.VITE_API_URL}/location/softdeletecity/${id}`)
+              const result=await axios.patch(`${import.meta.env.VITE_API_URL}/location/softdeletecity/${id}`,{},{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        })
 
              if(result.status===200){
                 fetchcity()
              }
            }
            catch(err){
+            if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
              console.log(err)
            }
       }
 
       async function handlerestore(id){
            try{
-              const result=await axios.patch(`${import.meta.env.VITE_API_URL}/location/recoverdeletecity/${id}`)
+              const result=await axios.patch(`${import.meta.env.VITE_API_URL}/location/recoverdeletecity/${id}`,{},{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        })
 
              if(result.status===200){
                 fetchcity()
              }
            }
            catch(err){
+            if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
              console.log(err)
            }
       }
 
       async function handledelete(id){
            try{
-              const result=await axios.delete(`${import.meta.env.VITE_API_URL}/location/deletecity/${id}`)
+              const result=await axios.delete(`${import.meta.env.VITE_API_URL}/location/deletecity/${id}`,{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        })
 
              if(result.status===200){
                 fetchcity()
              }
            }
            catch(err){
+            if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
              console.log(err)
            }
       }
@@ -147,10 +219,22 @@ function Citymanage() {
 
       async function handleview(id){
            try{
-              const result=await axios.get(`${import.meta.env.VITE_API_URL}/location/getonecity/${id}`)
+              const result=await axios.get(`${import.meta.env.VITE_API_URL}/location/getonecity/${id}`,{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        })
            setview(result?.data?.response)
            }
            catch(err){
+            if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
              console.log(err)
            }
       }
@@ -188,24 +272,45 @@ function Citymanage() {
 
    
      // Only active districts are selectable when adding a city
- function districtoption() {
-  return districtdata.map((state) => {
+  function districtoption() {
+    return districtdata
+      .filter((district) => district.activestatus && (district.state_id?.activestatus ?? true))
+      .map((district) => (
+        <option key={district._id} value={district._id}>
+          {district.districtname} ({district.state_id?.statename || "N/A"})
+        </option>
+      ));
+  }
 
-    if(state.activestatus){
-       const activeDistricts = state.alldistricts.filter(
-      (district) => district.activestatus
-    );
-
-    if (activeDistricts.length === 0) return null;
-
-       return activeDistricts.map((district) => (
-          <option key={district._id} value={district._id}>
-            {district.districtname} ({state.statename})
-          </option>
-        ))
+   const handleDownloadPDF = async () => {
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/download/pdf`,
+        { pdfdata: citydata },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          responseType: 'blob',
+        }
+      );
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'Cities.pdf');
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+    } catch (error) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
     }
-  });
-}
+      console.error('Error downloading PDF:', error);
+    }
+  };
 
   return (
      <div className="manage-page w-full rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/20 sm:p-6">
@@ -261,124 +366,102 @@ function Citymanage() {
       {districtoption()}
     </select>
             </div>
+            <div className='flex gap-3'>
+               <button onClick={handleDownloadPDF} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 flex items-center gap-2">
+                <Download className="h-4 w-4" /> PDF
+              </button>
             <button
               className="rounded-xl bg-linear-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
               onClick={() => setpopup(true)}
             >
               + Add City
             </button>
+            </div>
           </div>
 
           
    {citydata.length === 0 ? (
-        <div className="p-6 text-center text-slate-400">
-          No data found
+        <div className="px-6 py-8 text-center text-slate-400">
+          No cities available
         </div>
       ) : (         
-  <div className="space-y-6">
-    {citydata.map((state) => (
-    <div
-      key={state._id}
-      className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900"
-    >
-      {/* State Header */}
-      <div className="border-b border-slate-200 bg-slate-50 px-6 py-4 dark:border-slate-700 dark:bg-slate-800">
-        <h2 className="text-xl font-semibold capitalize text-slate-800 dark:text-white">
-          {state.statename}
-        </h2>
-
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          {state.country}
-        </p>
-      </div>
-
-      {/* Districts */}
-      {state.alldistricts.length === 0 ? (
-        <div className="p-6 text-center text-slate-400">
-          No districts found
-        </div>
-      ) : (
-        <div className="divide-y divide-slate-200 dark:divide-slate-700">
-          {state.alldistricts.map((district) => (
-            <div key={district._id} className="p-6">
-              {/* District Heading */}
-              <h3 className="mb-4 text-lg font-semibold capitalize text-slate-700 dark:text-slate-200">
-                {district.districtname}
-              </h3>
-
-              {/* Cities */}
-              {district.allcities.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-slate-300 py-6 text-center text-sm text-slate-400 dark:border-slate-700">
-                  No cities available
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <div className="divide-y divide-slate-200 dark:divide-slate-700">
+            {citydata.map((city) => (
+              <div
+                key={city._id}
+                className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-6 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition"
+              >
+                <div>
+                  <h3 className="font-semibold text-slate-800 dark:text-white text-base capitalize">
+                    {city.cityname}
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    District: <span className="font-medium text-slate-700 dark:text-slate-300">{city.district_id?.districtname || "N/A"}</span>
+                    {city.district_id?.state_id?.statename ? ` • State: ${city.district_id?.state_id?.statename}` : ""}
+                  </p>
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  {district?.allcities?.map((city) => (
-                    <div
-                      key={city._id}
-                      className="flex items-center justify-between rounded-lg border border-slate-200 px-4 py-3 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                      city.activestatus
+                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                        : "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
+                    }`}
+                  >
+                    {city.activestatus ? "Active" : "Inactive"}
+                  </span>
+
+                  <button
+                    onClick={() => handleview(city._id)}
+                    className="rounded-md px-3 py-1.5 text-xs font-medium text-sky-600 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-slate-700 transition"
+                  >
+                    View
+                  </button>
+
+                  {status === "active" ? (
+                    <>
+                      <button
+                        onClick={() => {
+                          setpopup(true);
+                          setcityd({
+                            _id: city._id,
+                            cityname: city.cityname,
+                            district_id: city.district_id?._id || city.district_id
+                          });
+                        }}
+                        className="rounded-md bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 transition"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handledeactivate(city._id)}
+                        className="rounded-md bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-300 transition"
+                      >
+                        Deactivate
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => handlerestore(city._id)}
+                      className="rounded-md bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-300 transition"
                     >
-                      <span className="font-medium capitalize text-slate-700 dark:text-slate-200">
-                        {city.cityname}
-                      </span>
-
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleview(city._id)}
-                          className="rounded-md px-3 py-1.5 text-sky-600 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-slate-700"
-                        >
-                          View
-                        </button>
-
-                        
-
-                        {status === "active" ? (
-                          <>
-                             <button
-                          onClick={() =>{
-                            setpopup(true)
-                            setcityd(city)
-                          }}
-                          className="rounded-md bg-blue-50 px-3 py-1.5 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300"
-                        >
-                          Edit
-                        </button>
-                            <button
-                              onClick={() => handledeactivate(city._id)}
-                              className="rounded-md bg-amber-50 px-3 py-1.5 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-300"
-                            >
-                              Deactivate
-                            </button>                          
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => handlerestore(city._id)}
-                              className="rounded-md bg-emerald-50 px-3 py-1.5 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-300"
-                            >
-                              Restore
-                            </button>
-
-                          </>
-                        )}
-                          <button
-                              onClick={() => handledelete(city._id)}
-                              className="rounded-md bg-red-50 px-3 py-1.5 text-red-700 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-300"
-                            >
-                              Delete
-                            </button>
-                      </div>
-                    </div>
-                  ))}
+                      Restore
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handledelete(city._id)}
+                    className="rounded-md bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-300 transition"
+                  >
+                    Delete
+                  </button>
                 </div>
-              )}
-            </div>
-          ))}
+              </div>
+            ))}
+          </div>
         </div>
       )}
-    </div>
-  ))}
-</div>)}
 
 {/* --- PAGINATION CONTROLS --- */}
 {totalCities > 0 && (

@@ -51,66 +51,38 @@ exports.districtreadall=async (req,res)=>{
     const {search,sort,status,statesort,skip,limit}=req.query
     const searchVal = search || "";
     
-    let statefilter={}
-    if(statesort){
-       statefilter={_id:new mongoose.Types.ObjectId(statesort),
-        activestatus:true
-       }
+    let matchQuery = {
+      districtname: { $regex: searchVal, $options: "i" }
+    };
+
+    if (status !== undefined && status !== "") {
+      matchQuery.activestatus = status === "true";
     }
 
-    let sorting=null;
-       if(sort==="az") sorting={districtname:1}
-         else if(sort==="za") sorting={districtname:-1}
-        else if(sort==='newest') sorting={createdAt:1}
-        else if(sort==='oldest') sorting={createdAt:-1}
+    if (statesort) {
+      matchQuery.state_id = statesort;
+    }
 
-    const basePipeline = [
-      {
-        $match: statefilter
-      },
-      {
-        $lookup: {
-          from: "districts",
-          let: { stateId: "$_id" },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $eq: ["$state_id", "$$stateId"]
-                },
-                districtname: {
-                  $regex: searchVal,
-                  $options: "i"
-                },
-                activestatus: (status==="true" ? true : false)
-              }
-            },
-            ...(sorting) ? [{$sort:sorting}] : []
-          ],
-          as: "alldistricts"
-        }
-      },
-      {
-        $match: {
-          "alldistricts.0": { $exists: true }
-        }
-      }
-    ];
+    let sorting = null;
+    if (sort === "az") sorting = { districtname: 1 };
+    else if (sort === "za") sorting = { districtname: -1 };
+    else if (sort === "newest") sorting = { createdAt: 1 };
+    else if (sort === "oldest") sorting = { createdAt: -1 };
 
-    const countResult = await states.aggregate([...basePipeline, { $count: "totalcount" }]);
-    const totalcount = countResult[0]?.totalcount || 0;
+    const totalcount = await districts.countDocuments(matchQuery);
 
-    const pipeline = [...basePipeline];
-    if (skip) pipeline.push({ $skip: parseInt(skip) });
-    if (limit) pipeline.push({ $limit: parseInt(limit) });
+    let query = districts.find(matchQuery).populate("state_id");
+    if (sorting) query = query.sort(sorting);
+    if (skip) query = query.skip(parseInt(skip));
+    if (limit) query = query.limit(parseInt(limit));
 
-    const response = await states.aggregate(pipeline);
+    const response = await query;
     
-     return res.status(200).json({response, totalcount})
+    return res.status(200).json({response, totalcount});
     }
     catch(err){
         console.log(err);
-        return res.status(500).json({message:"internal server error"})
+        return res.status(500).json({message:"internal server error"});
     }
 }
 

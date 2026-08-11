@@ -1,13 +1,20 @@
 import axios from 'axios';
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Search, Filter, SlidersHorizontal, CheckCircle2, BedDouble, UserCheck, ShieldCheck, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Search, Filter, BedDouble, ChevronRight, Clock } from 'lucide-react';
 import UseDebouncing from '../Hooks/UseDebouncing';
 
+// Standalone countdown badge — owns its own 1s timer so only THIS
+// re-renders every tick, instead of the entire room grid.
+
+
 function UserHotelbook() {
-  const navigate = useNavigate();
+
+  const navigate = useNavigate()
+
   const { hotelEmail } = useParams();
   const userId = localStorage.getItem("userid");
+  const token = localStorage.getItem('token');
 
   const [roomdata, setroomdata] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,7 +26,7 @@ function UserHotelbook() {
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const [limit, setLimit] = useState(6);
+  const [limit, setLimit] = useState(8);
   const [totalPages, setTotalPages] = useState(1);
   const [totalRooms, setTotalRooms] = useState(0);
 
@@ -39,13 +46,58 @@ function UserHotelbook() {
     smokingAllowed: false,
   });
 
+  const [tempbookingdata, settempbookingdata] = useState([]);
+
+  const HoldCountdown = React.memo(function HoldCountdown({ expireTime }) {
+const [remaining, setRemaining] = useState(() => expireTime - Date.now());
+
+  useEffect(() => {
+    setRemaining(expireTime - Date.now());
+    const id = setInterval(() => {
+      setRemaining(expireTime - Date.now());
+    }, 1000);
+    return () => clearInterval(id);
+  }, [expireTime]);
+
+  if (remaining <= 0) {
+    alltempbookings()
+    return null;
+  }
+
+  const totalSeconds = Math.floor(remaining / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  const formatted = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+  return <>{formatted}</>;
+});
+
   async function fetchrooms() {
     try {
       setLoading(true);
       const apiUrl = import.meta.env.VITE_API_URL;
       const skip = (currentPage - 1) * limit;
+
+      const activeAmenities = Object.keys(filters)
+        .filter((key) => filters[key] === true)
+        .join(",");
+
+      const queryParams = [
+        `search=${encodeURIComponent(debouncedSearch)}`,
+        `status=active`,
+        `sort=${sort}`,
+        `priceRange=${price}`,
+        `roomType=${roomType}`,
+        `skip=${skip}`,
+        `limit=${limit}`,
+      ];
+
+      if (activeAmenities) {
+        queryParams.push(`amenities=${activeAmenities}`);
+      }
+
       const result = await axios.get(
-        `${apiUrl}/room/getallhotelrooms/${hotelEmail}?search=${debouncedSearch}&status=active&sort=${sort}&skip=${skip}&limit=${limit}`
+        `${apiUrl}/room/getallhotelrooms/${hotelEmail}?${queryParams.join("&")}`
       );
       const responseData = result?.data?.response || [];
       setroomdata(responseData);
@@ -60,17 +112,114 @@ function UserHotelbook() {
     }
   }
 
+  async function alltempbookings() {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL;
+      const result = await axios.get(`${apiUrl}/tempbook/getalltempbooking`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      settempbookingdata(result?.data?.room || []);
+    } catch (err) {
+      if (err?.response?.status === 401 || err?.status === 401) {
+        localStorage.removeItem("user");
+        localStorage.removeItem("userid");
+        localStorage.removeItem("token");
+        localStorage.removeItem("email");
+        localStorage.removeItem("theme");
+        navigate('/login');
+      }
+      console.error("Failed to fetch temp bookings", err);
+    }
+  }
+
   async function handleviewbook(roomId) {
     try {
       const apiUrl = import.meta.env.VITE_API_URL;
-      const result = await axios.post(`${apiUrl}/tempbook/tempbookings`, { roomId, userId });
+      const result = await axios.post(`${apiUrl}/tempbook/tempbookings`, { roomId, userId }, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
       if (result.status === 200 || result.status === 201) {
         navigate(`/roombook/${roomId}`);
       }
     } catch (err) {
-      console.log(err.response);
+      if (err?.response?.status === 401 || err?.status === 401) {
+        localStorage.removeItem("user");
+        localStorage.removeItem("userid");
+        localStorage.removeItem("token");
+        localStorage.removeItem("email");
+        localStorage.removeItem("theme");
+        navigate('/login');
+      }
+      if(err.status===409){
+        alltempbookings()
+        alert('Room is temporarily held by another user')
+      }
+      console.error(err.response);
     }
   }
+
+  /**
+   * Map of roomId -> active temp booking record.
+   * Built once per tempbookingdata change instead of re-scanning the
+   * full array with .find() for every room on every render.
+   *
+   * Handles both populated (roomId: { _id }) and unpopulated
+   * (roomId: "someIdString") shapes coming back from the API, and
+   * normalizes ids to strings before comparing.
+   */
+  const tempBookingMap = useMemo(() => {
+    const map = new Map();
+    tempbookingdata.forEach((item) => {
+      
+      if (item.bookingstatus !== "temprorarybook") return;
+
+      const targetRoomId =
+        typeof item.roomId === "object" && item.roomId !== null
+          ? item.roomId._id
+          : item.roomId;
+
+      if (!targetRoomId)  return;
+
+      const expireTime = new Date(item.expiretime).getTime();
+      // Skip anything already expired so stale entries don't linger
+      // until the next fetch clears them out.
+      
+      if (expireTime <= Date.now()){
+        return;
+      }
+
+      map.set(String(targetRoomId), item);
+    });
+    
+    return map;
+  }, [tempbookingdata]);
+
+  /**
+   * Resolve booking status for a room from the pre-built map.
+   * Pure lookup — no per-second recomputation needed here, the
+   * countdown itself lives inside <HoldCountdown /> now.
+   */
+  const getTempBookingStatus = (roomId) => {
+    const activeBooking = tempBookingMap.get(String(roomId));
+    
+    if (!activeBooking) {
+      return { isTempBooked: false, isBookedByOther: false, isBookedByMe: false, expireTime: null };
+    }
+
+    const bookingUserId = activeBooking.userId?._id || activeBooking.userId;
+    const isBookedByOther = String(bookingUserId) !== String(userId);
+
+    return {
+      isTempBooked: true,
+      isBookedByOther,
+      isBookedByMe: !isBookedByOther,
+      expireTime: new Date(activeBooking.expiretime).getTime(),
+    };
+  };
 
   // Reset page when filters or search change
   useEffect(() => {
@@ -78,30 +227,12 @@ function UserHotelbook() {
   }, [debouncedSearch, sort, price, roomType, filters]);
 
   useEffect(() => {
+    if (userId) {
+      alltempbookings();
+    }
     fetchrooms();
     window.scrollTo(0, 0);
-  }, [hotelEmail, debouncedSearch, sort, currentPage, limit]);
-
-  const filteredRooms = useMemo(() => {
-    return roomdata.filter((room) => {
-      // Price Filter
-      if (price === "0-1000" && room.price > 1000) return false;
-      if (price === "1000-2000" && (room.price < 1000 || room.price > 2000)) return false;
-      if (price === "2000+" && room.price < 2000) return false;
-
-      // Room Type Filter
-      if (roomType !== "all" && room.roomtype !== roomType) return false;
-
-      // Facilities Filter
-      for (const key in filters) {
-        if (filters[key] && !room.facilities?.[key]) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [roomdata, price, roomType, filters]);
+  }, [hotelEmail, debouncedSearch, sort, price, roomType, filters, currentPage, limit]);
 
   const getPageNumbers = useMemo(() => {
     const pages = [];
@@ -122,7 +253,7 @@ function UserHotelbook() {
   return (
     <div className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8 dark:bg-slate-950 text-slate-800 dark:text-slate-100">
       <div className="w-full px-2 sm:px-4 md:px-6 xl:px-8">
-        
+
         {/* TOP NAVIGATION & HEADER */}
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <button
@@ -157,11 +288,11 @@ function UserHotelbook() {
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
-          
+
           {/* SIDEBAR FILTERS */}
           <aside className="lg:col-span-1">
             <div className="sticky top-20 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
-              
+
               <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
                 <div className="flex items-center gap-2">
                   <Filter className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
@@ -239,10 +370,10 @@ function UserHotelbook() {
 
           {/* ROOMS LIST FEED */}
           <main className="lg:col-span-3">
-            
+
             <div className="mb-4 flex items-center justify-between">
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Available Rooms: <strong className="text-slate-900 dark:text-white">{filteredRooms.length}</strong>
+                Available Rooms: <strong className="text-slate-900 dark:text-white">{roomdata.length}</strong>
                 {totalRooms > 0 && <span className="ml-1 text-slate-400">(Total {totalRooms})</span>}
               </p>
             </div>
@@ -252,7 +383,7 @@ function UserHotelbook() {
                 <div className="mb-3 h-8 w-8 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent"></div>
                 <p className="text-xs font-medium">Fetching hotel rooms...</p>
               </div>
-            ) : filteredRooms.length === 0 ? (
+            ) : roomdata.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-200 bg-white/60 py-20 text-center dark:border-slate-800 dark:bg-slate-900/60">
                 <BedDouble className="mx-auto mb-2 h-10 w-10 text-slate-400" />
                 <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
@@ -261,68 +392,104 @@ function UserHotelbook() {
               </div>
             ) : (
               <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                {filteredRooms.map((room) => (
-                  <div
-                    key={room._id}
-                    className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900"
-                  >
-                    <div className="relative h-52 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
-                      <img
-                        src={room.image1}
-                        alt={`Room ${room.roomno}`}
-                        loading="lazy"
-                        decoding="async"
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
-                      <span className="absolute top-3 left-3 rounded-md border border-slate-200 bg-white/90 px-2.5 py-1 text-[10px] font-bold text-slate-800 shadow-xs backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/90 dark:text-white">
-                        Room {room.roomno}
-                      </span>
-                      <span className={`absolute top-3 right-3 rounded-md px-2.5 py-1 text-[10px] font-semibold backdrop-blur-md shadow-xs ${
-                        room.isavailable 
-                          ? "border border-emerald-200 bg-emerald-50/90 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/90 dark:text-emerald-300"
-                          : "border border-rose-200 bg-rose-50/90 text-rose-700 dark:border-rose-800 dark:bg-rose-950/90 dark:text-rose-300"
-                      }`}>
-                        {room.isavailable ? "Available" : "Booked"}
-                      </span>
-                    </div>
+                {roomdata.map((room) => {
 
-                    <div className="flex flex-1 flex-col justify-between p-5 space-y-4">
-                      <div>
-                        <div className="flex items-center justify-between">
-                          <h3 className="text-lg font-bold capitalize text-slate-900 dark:text-white">
-                            {room.roomtype} Room
-                          </h3>
-                          <span className="text-lg font-black text-indigo-600 dark:text-indigo-400">
-                            ₹{room.price} <span className="text-[10px] font-normal text-slate-400">/night</span>
-                          </span>
-                        </div>
+                  const { isBookedByOther, isBookedByMe, expireTime } = getTempBookingStatus(room._id);
+                  const isButtonDisabled = !room.isavailable || isBookedByOther;
 
-                        {/* Facilities Pills */}
-                        <div className="mt-3 flex flex-wrap gap-1.5">
-                          {Object.entries(room.facilities || {})
-                            .filter(([_, value]) => value === true)
-                            .map(([key]) => (
-                              <span
-                                key={key}
-                                className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300"
-                              >
-                                {key.replace(/([A-Z])/g, " $1")}
-                              </span>
-                            ))}
-                        </div>
+                  return (
+                    <div
+                      key={room._id}
+                      className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900"
+                    >
+                      <div className="relative h-52 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+                        <img
+                          src={room.image1}
+                          alt={`Room ${room.roomno}`}
+                          loading="lazy"
+                          decoding="async"
+                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                        <span className="absolute top-3 left-3 rounded-md border border-slate-200 bg-white/90 px-2.5 py-1 text-[10px] font-bold text-slate-800 shadow-xs backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/90 dark:text-white">
+                          Room {room.roomno}
+                        </span>
+
+                        {/* Availability / Temp Status Badge */}
+                        <span className={`absolute top-3 right-3 rounded-md px-2.5 py-1 text-[10px] font-semibold backdrop-blur-md shadow-xs ${
+                          isBookedByOther
+                            ? "border border-amber-300 bg-amber-50/90 text-amber-700 dark:border-amber-800 dark:bg-amber-950/90 dark:text-amber-300"
+                            : isBookedByMe
+                            ? "border border-blue-200 bg-blue-50/90 text-blue-700 dark:border-blue-800 dark:bg-blue-950/90 dark:text-blue-300"
+                            : room.isavailable
+                            ? "border border-emerald-200 bg-emerald-50/90 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/90 dark:text-emerald-300"
+                            : "border border-rose-200 bg-rose-50/90 text-rose-700 dark:border-rose-800 dark:bg-rose-950/90 dark:text-rose-300"
+                        }`}>
+                          {isBookedByOther ? (
+                            <>On Hold (<HoldCountdown expireTime={expireTime} />)</>
+                          ) : isBookedByMe ? (
+                            <>Your Hold (<HoldCountdown expireTime={expireTime} />)</>
+                          ) : room.isavailable ? (
+                            "Available"
+                          ) : (
+                            "Booked"
+                          )}
+                        </span>
                       </div>
 
-                      <button
-                        className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-indigo-600 py-2.5 text-xs font-semibold text-white shadow-xs transition hover:bg-indigo-700 disabled:opacity-50"
-                        disabled={!room.isavailable}
-                        onClick={() => handleviewbook(room._id)}
-                      >
-                        <span>{room.isavailable ? "View & Reserve Room" : "Currently Unavailable"}</span>
-                        {room.isavailable && <ChevronRight className="h-4 w-4" />}
-                      </button>
+                      <div className="flex flex-1 flex-col justify-between p-5 space-y-4">
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <h3 className="text-lg font-bold capitalize text-slate-900 dark:text-white">
+                              {room.roomtype} Room
+                            </h3>
+                            <span className="text-lg font-black text-indigo-600 dark:text-indigo-400">
+                              ₹{room.price} <span className="text-[10px] font-normal text-slate-400">/night</span>
+                            </span>
+                          </div>
+
+                          {/* Facilities Pills */}
+                          <div className="mt-3 flex flex-wrap gap-1.5">
+                            {Object.entries(room.facilities || {})
+                              .filter(([_, value]) => value === true)
+                              .map(([key]) => (
+                                <span
+                                  key={key}
+                                  className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                                >
+                                  {key.replace(/([A-Z])/g, " $1")}
+                                </span>
+                              ))}
+                          </div>
+                        </div>
+
+                        {/* Action Button with Dynamic Countdown */}
+                        <button
+                          className={`inline-flex w-full items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-semibold text-white shadow-xs transition disabled:cursor-not-allowed ${
+                            isBookedByOther
+                              ? "bg-amber-600/80 hover:bg-amber-600 opacity-90"
+                              : "bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
+                          }`}
+                          disabled={isButtonDisabled}
+                          onClick={() => handleviewbook(room._id)}
+                        >
+                          {isBookedByOther ? (
+                            <>
+                              <Clock className="h-3.5 w-3.5 animate-pulse" />
+                              <span>Temporarily Held (<HoldCountdown expireTime={expireTime} />)</span>
+                            </>
+                          ) : !room.isavailable ? (
+                            <span>Currently Unavailable</span>
+                          ) : (
+                            <>
+                              <span>{isBookedByMe ? "Continue Reservation" : "View & Reserve Room"}</span>
+                              <ChevronRight className="h-4 w-4" />
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -344,6 +511,7 @@ function UserHotelbook() {
                     >
                       <option value={4}>4</option>
                       <option value={6}>6</option>
+                      <option value={8}>8</option>
                       <option value={10}>10</option>
                       <option value={20}>20</option>
                     </select>

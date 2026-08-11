@@ -21,6 +21,14 @@ function Usetheme() {
        
         }
        catch(err){
+        if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
         console.log(err); 
        }
         

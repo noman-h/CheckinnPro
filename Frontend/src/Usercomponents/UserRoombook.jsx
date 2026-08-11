@@ -21,9 +21,9 @@ function UserRoombook() {
   const [roomdata, setroomdata] = useState({});
   const [bookingdata, setbookingdata] = useState([]);
   const [coupandata, setcoupandata] = useState([]);
-  const [tempbookingdata, settempbookingdata] = useState({});
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(new Date());
 
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [bookingForm, setBookingForm] = useState({
     checkIn: '',
@@ -32,6 +32,8 @@ function UserRoombook() {
   });
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [dateError, setDateError] = useState('');
+
+  const token=localStorage.getItem('token')
 
   async function fetchroom() {
     try {
@@ -46,44 +48,55 @@ function UserRoombook() {
   async function allbookings() {
     try {
       const apiUrl = import.meta.env.VITE_API_URL;
-      const result = await axios.get(`${apiUrl}/booking/roombooking/${roomid}`);
+      const result = await axios.get(`${apiUrl}/booking/roombooking/${roomid}`,{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        });
       setbookingdata(result?.data?.result || []);
     } catch (err) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       console.log(err);      
     }
   }
 
-  async function alltempbookings() {
-    try {
-      const apiUrl = import.meta.env.VITE_API_URL;
-      const result = await axios.get(`${apiUrl}/tempbook/gettempbooking/${roomid}`);
-      settempbookingdata(result?.data?.room || {});
-      console.log(result);
-      
-    } catch (err) {
-      console.log(err);      
-    }
-  }
+  
 
   async function allcoupans() {
     try {
       const apiUrl = import.meta.env.VITE_API_URL;
-      const result = await axios.get(`${apiUrl}/coupan/getallcoupans/${roomid}`);
+      const result = await axios.get(`${apiUrl}/coupan/getallcoupans/${roomid}`,{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        });
       const fetchedCoupons = result?.data?.response || result?.data?.result || [];
       setcoupandata(fetchedCoupons);
     } catch (err) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       console.log(err);      
     }
   }
-  console.log(tempbookingdata);
-  
 
   useEffect(() => {
     if (roomid) {
       fetchroom();
       allbookings();
       allcoupans();
-      alltempbookings()
     }
   }, [roomid]);
 
@@ -95,10 +108,12 @@ function UserRoombook() {
       if (!coupon.activestatus) return false;
       const endDate = moment(coupon.enddate).endOf('day');
       const isNotExpired = endDate.isSameOrAfter(today);
-      const isPriceEligible = Number(coupon.maxprice) >= roomPrice;
+      const isPriceEligible = Number(coupon.maxprice) <= roomPrice;
       
       return isNotExpired && isPriceEligible;
     });
+  
+    
   };
 
   const validCoupons = getValidCoupons();
@@ -137,25 +152,6 @@ function UserRoombook() {
       }
     }
 
-    if (tempbookingdata && tempbookingdata.expiretime) {
-    const isTemp = 
-      tempbookingdata.bookingstatus === 'temprorarybook' || 
-      tempbookingdata.bookingstatus === 'temporarybook';
-
-    
-    // Check if the temporary hold belongs to ANOTHER user
-    const isOtherUser = String(tempbookingdata.userId) !== String(userId);
-
-    // Only block/mark pending if another user is holding the temp booking
-    if (isTemp  && isOtherUser) {
-      const expireDay = moment.utc(tempbookingdata.expiretime).startOf('day');
-      
-      if (target.isSame(expireDay, 'day')) {
-        return 'pending'; // Shows as pending to other users
-      }
-    }
-  }
-
     return null;
   };
 
@@ -177,25 +173,6 @@ function UserRoombook() {
         return true;
       }
     }
-
-    if (tempbookingdata && tempbookingdata.expiretime) {
-    const isTemp = 
-      tempbookingdata.bookingstatus === 'temprorarybook' || 
-      tempbookingdata.bookingstatus === 'temporarybook';
-
-  
-    
-    // Check if the temporary hold belongs to ANOTHER user
-    const isOtherUser = String(tempbookingdata.userId) !== String(userId);
-
-    if (isTemp  && isOtherUser) {
-      const expireDay = moment.utc(tempbookingdata.expiretime).startOf('day');
-
-      if (start.isSameOrBefore(expireDay) && end.isSameOrAfter(expireDay)) {
-        return true; // Blocks range for other users
-      }
-    }
-  }
 
     return false;
   };
@@ -256,7 +233,11 @@ function UserRoombook() {
       };
 
       const apiUrl = import.meta.env.VITE_API_URL;
-      const result = await axios.post(`${apiUrl}/booking/bookinghotel`, { ...data });
+      const result = await axios.post(`${apiUrl}/booking/bookinghotel`, { ...data },{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        });
 
       if (result.status === 201) {
         setIsModalOpen(false);
@@ -273,6 +254,14 @@ function UserRoombook() {
         allbookings();
       }
     } catch (err) {
+       if(err.status===401){
+     localStorage.removeItem("user")
+     localStorage.removeItem("userid")
+     localStorage.removeItem("token")
+     localStorage.removeItem("email")
+     localStorage.removeItem("theme")
+     navigate('/login')
+    }
       console.log(err);
     }
   }

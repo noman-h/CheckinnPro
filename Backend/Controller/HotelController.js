@@ -7,6 +7,7 @@ const { v4: uuidv4 } = require("uuid");
 const mongoose = require('mongoose')
 const { uploadimage } = require('../Utils/FileUpload')
 const moment = require('moment')
+const xlsx = require('xlsx')
 
 
 
@@ -197,11 +198,14 @@ exports.hotelreadadminall = async (req, res) => {
 
 
 exports.hotelreadadminopt = async (req, res) => {
+  console.log(req.params);
+  
   try {
 
-    const { adminemail } = req.params.adminemail
-
-    const admin = await admins.findOne({ oweneremail: adminemail })
+    const {adminemail}  = req.params
+    
+    
+    const admin = await admins.findOne({owneremail: adminemail })
     if (!admin) {
       return res.status(404).json({ message: "admin not found" })
     }
@@ -475,7 +479,7 @@ exports.updateotpverify = async (req, res) => {
       return res.status(200).json({ message: "Code verify" });
     }
     else if (hotel.otp !== Number(otp)) {
-      return res.status(401).json({ message: "wrong code" });
+      return res.status(400).json({ message: "wrong code" });
     }
     else {
       await hotels.findOneAndUpdate({ hotelEmail: email }, { otp: "", expiretime: "" });
@@ -556,3 +560,83 @@ exports.directhoteladd = async (req, res) => {
     return res.status(500).json({ message: "internal server error", err });
   }
 };
+
+exports.hotelbulkimport = async (req, res) => {
+    try {
+        const { CityId } = req.body;
+        const { adminEmail } = req.body; // or fetch via auth token
+
+        if (!CityId) {
+            return res.status(400).json({ message: "CityId is required" });
+        }
+
+        if (!req.files || !req.files.file) {
+            return res.status(400).json({ message: "No file uploaded" });
+        }
+
+        // we might not have adminEmail in body if we assume current admin
+        // Let's rely on admin email from the request if sent, or token.
+        // We can just use the admin_id from the user email.
+        const admin = await admins.findOne({ owneremail: adminEmail });
+        if (!admin) {
+           return res.status(404).json({ message: "Admin not found" });
+        }
+
+        const file = req.files.file;
+        const workbook = xlsx.read(file.data, { type: 'buffer' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const jsonData = xlsx.utils.sheet_to_json(sheet);
+
+        if (!jsonData || jsonData.length === 0) {
+            return res.status(400).json({ message: "File is empty or invalid format" });
+        }
+
+        const validHotels = [];
+        const errors = [];
+
+        for (let i = 0; i < jsonData.length; i++) {
+            const row = jsonData[i];
+            const { hotelName, description, Address, pricePerNight, totalRooms, hotelEmail, hotelPhone } = row;
+
+            if (!hotelName || !description || !Address || !pricePerNight || !totalRooms || !hotelEmail || !hotelPhone) {
+                errors.push(`Row ${i + 2}: Missing required fields`);
+                continue;
+            }
+
+            const existing = await hotels.findOne({ hotelEmail });
+            if (existing) {
+                errors.push(`Row ${i + 2}: Hotel with email ${hotelEmail} already exists`);
+                continue;
+            }
+
+            validHotels.push({
+                hotelName: String(hotelName),
+                description: String(description),
+                Address: String(Address),
+                CityId,
+                pricePerNight: Number(pricePerNight),
+                totalRooms: Number(totalRooms),
+                hotelEmail: String(hotelEmail),
+                hotelPhone: String(hotelPhone),
+                admin_id: admin._id,
+                approveStatus: "approved",
+                activeStatus: true
+            });
+        }
+
+        if (validHotels.length > 0) {
+            await hotels.insertMany(validHotels);
+        }
+
+        return res.status(200).json({
+            message: "Bulk import completed",
+            imported: validHotels.length,
+            errors: errors
+        });
+
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+}
