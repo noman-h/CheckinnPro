@@ -22,6 +22,7 @@ import AdminWindow from './Admincomponents/AdminWindow'
 import Adminprotect from './ProtectedRoutes/Adminprotect'
 import Hotelprotect from './ProtectedRoutes/Hotelprotect'
 import Superadminprotect from './ProtectedRoutes/Superadminprotect'
+import Pagenotfound from './Genericcomponents/Pagenotfound'
 
 function App() {
 
@@ -56,6 +57,8 @@ function App() {
        <Route path='/roombook/:roomid' element={<Protectedroute><UserRoombook/></Protectedroute>}/> 
 
        <Route path='/userbookings' element={<Protectedroute><Userbookings/></Protectedroute>}/> 
+
+      <Route path="*" element={<Pagenotfound />} />
        
       </Routes>
     </main>
