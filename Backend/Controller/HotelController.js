@@ -11,7 +11,7 @@ const xlsx = require('xlsx')
 
 
 
-const htmltemplate = require('../Utils/htmltemplate')
+const htmltemplate = require('../Utils/HtmlTemplate')
 const sendmail = require('../Utils/helper')
 const HotelModel = require('../Model/HotelModel')
 exports.hotladd = async (req, res) => {

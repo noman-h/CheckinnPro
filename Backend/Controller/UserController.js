@@ -5,7 +5,7 @@ const moment=require('moment')
 
 
 
- const htmltemplate=require('../Utils/htmltemplate')
+ const htmltemplate=require('../Utils/HtmlTemplate')
         const sendmail=require('../Utils/helper')
 
 exports.singup= async (req,res)=>{
