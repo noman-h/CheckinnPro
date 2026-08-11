@@ -102,7 +102,6 @@ exports.resetpass=async (req,res)=>{
 exports.forgetotpsend=async (req,res)=>{
     try{
         const {email}=req.body
-        console.log(email);
         
         if(!(email)){
             return res.status(404).json({message:"all keys are required"})
@@ -114,7 +113,7 @@ exports.forgetotpsend=async (req,res)=>{
             return res.status(404).json({message:"user not found"})
         }
        
-        const otpgen=require('../Utils/otpgen')
+        const otpgen=require('../Utils/OtpGen')
         const otp=otpgen()
         const saveotp=await users.findOneAndUpdate({email},{
             otp:otp,

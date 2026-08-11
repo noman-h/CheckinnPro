@@ -309,7 +309,7 @@ exports.emailotpsend = async (req, res) => {
 
 
 
-    const otpgen = require("../Utils/otpgen");
+    const otpgen = require("../Utils/OtpGen");
     const otp = otpgen();
 
     const existing = await admins.findOne({ owneremail: email });
@@ -364,7 +364,7 @@ exports.updateotpsend = async (req, res) => {
       return res.status(404).json({ message: "ownerdetail not found" });
     }
 
-    const otpgen = require("../Utils/otpgen");
+    const otpgen = require("../Utils/OtpGen");
     const otp = otpgen();
     const saveotp = await admins.findOneAndUpdate(
       { owneremail: email },
