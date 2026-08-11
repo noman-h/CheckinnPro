@@ -12,7 +12,7 @@ const xlsx = require('xlsx')
 
 
 const htmltemplate = require('../Utils/HtmlTemplate')
-const sendmail = require('../Utils/helper')
+const sendmail = require('../Utils/Helper')
 const HotelModel = require('../Model/HotelModel')
 exports.hotladd = async (req, res) => {
   try {
