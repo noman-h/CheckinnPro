@@ -18,6 +18,7 @@ exports.mailsend= async (sendermail,sendersubject,senderhtml)=>{
             html:senderhtml
         }) 
 
+        console.log("Email sent:", info.messageId);
         return info.messageId
     }
     catch(err){
