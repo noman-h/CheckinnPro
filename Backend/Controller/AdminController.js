@@ -39,7 +39,7 @@ exports.adminadd = async (req, res) => {
     const emailid = await sendmail.mailsend(
       owneremail,
       "status checkid",
-      HtmlTemplate.hotelCheckIdTemplate(ownername, checkid),
+      HtmlTemplate.adminCheckIdTemplate(ownername, checkid),
     );
 
     if (emailid) {
@@ -254,7 +254,7 @@ exports.adminapprove = async (req, res) => {
     const emailid = await sendmail.mailsend(
       ownerdetail.owneremail,
       "owner approved",
-      HtmlTemplate.hotelApprovalTemplate(
+      HtmlTemplate.adminApprovedTemplate(
         ownerdetail.ownername,
         ownerdetail.owneremail,
         password,
@@ -283,7 +283,7 @@ exports.adminreject = async (req, res) => {
     const emailid = await sendmail.mailsend(
       owneremail,
       "owner rejected",
-      HtmlTemplate.hotelRejectedTemplate(ownername, reason),
+      HtmlTemplate.adminRejectedTemplate(ownername, reason),
     );
 
     const response = await admins.findByIdAndUpdate(_id, {
@@ -305,8 +305,6 @@ exports.emailotpsend = async (req, res) => {
     if (!email) {
       return res.status(404).json({ message: "all keys are required" });
     }
-
-
 
 
     const otpgen = require("../Utils/OtpGen");
@@ -335,7 +333,7 @@ exports.emailotpsend = async (req, res) => {
     const mailid = await sendmail.mailsend(
       email,
       "otp for update form",
-      HtmlTemplate.otptemplate(email, otp),
+      HtmlTemplate.otptemplatetoverifyemail(email, otp),
     );
 
     if (mailid) {
@@ -374,10 +372,13 @@ exports.updateotpsend = async (req, res) => {
       },
     );
 
+
+    
+
     const mailid = await sendmail.mailsend(
       email,
       "otp for update form",
-      HtmlTemplate.otptemplate(ownerdetail.ownername, otp),
+      HtmlTemplate.adminUpdateOtpTemplate(ownerdetail.ownername, otp),
     );
 
     if (mailid) {
@@ -462,7 +463,7 @@ exports.directadminadd = async (req, res) => {
     const emailid = await sendmail.mailsend(
       owneremail,
       "owner approved",
-      HtmlTemplate.hotelApprovalTemplate(
+      HtmlTemplate.adminApprovedTemplate(
         ownername,
         owneremail,
         password,

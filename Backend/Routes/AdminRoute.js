@@ -30,7 +30,9 @@ router.patch('/approveadmin',auth,authrize('superadmin'),AdminController.adminap
 router.patch('/rejectadmin',auth,authrize('superadmin'),AdminController.adminreject)
 
 router.post('/adminemailotpsend',AdminController.emailotpsend)
+
 router.patch('/adminotpsend',AdminController.updateotpsend)
+
 router.patch('/adminotpverify',AdminController.updateotpverify)
 
 module.exports=router
