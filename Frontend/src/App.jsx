@@ -38,7 +38,7 @@ function App() {
        <Route path='/forget' element={<Forgetpass/>}/>
        <Route path='/login' element={<Login/>}/>
 
-        <Route path='/Adminaddform' element={<Adminaddform/>}/>
+        <Route path='/Adminaddform/:adminid?' element={<Adminaddform/>}/>
 
        <Route path='/admindashboard' element={<Adminprotect><AdminWindow/></Adminprotect> }/>
 
@@ -48,7 +48,7 @@ function App() {
 
        <Route path='/superadmindashboard' element={<Superadminprotect><SuperAdminWindow/></Superadminprotect>}/>
 
-       <Route path='/hotelform' element={<Protectedroute><Hotelform/></Protectedroute>}/>
+       <Route path='/hotelform/:hotelid?' element={<Protectedroute><Hotelform/></Protectedroute>}/>
 
        <Route path='/reset' element={<Protectedroute><Resetpass/></Protectedroute>}/> 
 

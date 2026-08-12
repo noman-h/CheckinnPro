@@ -449,10 +449,17 @@ function Adminmanage() {
             {/* Actions */}
             <div className="mt-6 flex flex-wrap gap-2 justify-end border-t border-slate-100 pt-4 dark:border-slate-800">
               <button
-                className="rounded-lg bg-sky-50 px-3 py-1.5 text-sm font-semibold text-sky-600 transition hover:bg-sky-100 dark:bg-sky-500/10 dark:text-sky-400 dark:hover:bg-sky-500/20"
+                className="rounded-lg  px-3 py-1.5 text-sm font-semibold text-sky-600 transition hover:bg-sky-100 dark:text-sky-400 dark:hover:bg-sky-500/20"
                 onClick={() => handleview(item._id)}
               >
                 View
+              </button>
+
+              <button
+                className="rounded-lg bg-sky-50 px-3 py-1.5 text-sm font-semibold text-sky-600 transition hover:bg-sky-100 dark:bg-sky-500/10 dark:text-sky-400 dark:hover:bg-sky-500/20"
+                onClick={() => navigate(`/Adminaddform/${item._id}`)}
+              >
+                edit
               </button>
 
               {item.approveStatus === "pending" && (

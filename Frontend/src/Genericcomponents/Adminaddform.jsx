@@ -2,12 +2,16 @@ import axios from "axios";
 import React from "react";
 import { useEffect } from "react";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 function Adminaddform() {
 
 const navigate=useNavigate()
 const BASE_URL=import.meta.env.VITE_API_URL
+
+const {adminid}=useParams()
+
+
 
 const role=localStorage.getItem('user')
   const [citydata, setcitydata] = useState([]);
@@ -22,7 +26,6 @@ const [successmsg, setsuccessmsg] = useState("");
       const result = await axios.get(
         `${import.meta.env.VITE_API_URL}/location/getallcity`,
       );
-      console.log(result);
       
       setcitydata(result?.data?.response || []);
     } catch (err) {
@@ -46,7 +49,8 @@ const [successmsg, setsuccessmsg] = useState("");
             }
          }
          catch(err){
-          console.log(err);
+          alert(err?.response?.data?.message)
+          console.log(err.response);
          }
   }
 
@@ -193,10 +197,54 @@ const [successmsg, setsuccessmsg] = useState("");
     seterr(obj)
   }
 
+  async function fetchAdminData() {
+  try {
+    const token=localStorage.getItem('token')
+    const result = await axios.get(
+      `${BASE_URL}/admin/getoneadmin/${adminid}`,{
+            headers:{
+                Authorization:`Bearer ${token}`
+            }
+        }
+    );
+
+    if (result.status === 200) {
+      const data = result.data.response;
+
+      setOwnerData({
+        _id: data._id,
+        ownername: data.ownername || "",
+        owneremail: data.owneremail || "",
+        ownerphone: data.ownerphone || "",
+        cityId: data.cityId?._id || data.cityId || "",
+        address: data.address || "",
+        aadhaarNumber: data.aadhaarNumber || "",
+
+        // Don't put existing image URLs into file fields
+        profileImage: null,
+        aadhaarFront: null,
+        aadhaarBack: null,
+      });
+    }
+  } catch (err) {
+    console.log(err);
+
+    seterrors({
+      form:
+        err?.response?.data?.message ||
+        "Unable to load admin details.",
+    });
+  }
+}
+
 
   useEffect(() => {
+     if (adminid) {
+    fetchAdminData();
+  }
+
     fetchcity();
-  }, []);
+  }, [adminid]);
 
 
 
@@ -250,12 +298,12 @@ const [successmsg, setsuccessmsg] = useState("");
     else if (!/^\d{12}$/.test(ownerData.aadhaarNumber))
       obj.aadhaarNumber = "Aadhaar must contain 12 digits";
 
-    if (!ownerData.profileImage) obj.profileImage = "Profile image is required";
+    if (!ownerData.profileImage && !ownerData._id) obj.profileImage = "Profile image is required";
 
-    if (!ownerData.aadhaarFront)
+    if (!ownerData.aadhaarFront && !ownerData._id)
       obj.aadhaarFront = "Aadhaar front image is required";
 
-    if (!ownerData.aadhaarBack)
+    if (!ownerData.aadhaarBack && !ownerData._id)
       obj.aadhaarBack = "Aadhaar back image is required";
 
 
@@ -284,7 +332,7 @@ const result=await axios.post(
   }
 );
  
-      if (result.status === 201) {
+      if (result.status === 200) {
         setemailVerified(false)
         setsuccessmsg("ownerdetail Updated successfully.");
         setOwnerData({
@@ -716,6 +764,7 @@ const result=await axios.patch(
         <button
           onClick={() => handlecheck()}
           className="rounded-xl bg-blue-600 px-5 py-2 font-medium text-white transition hover:bg-blue-700 active:scale-95"
+          type='button'
         >
           Check Status
         </button>

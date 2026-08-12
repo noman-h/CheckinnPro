@@ -442,6 +442,12 @@ function Hotelsmanage() {
                     >
                       View
                     </button>
+                    <button
+                      className="rounded-lg bg-sky-50 px-3 py-1.5 text-sm font-semibold text-sky-600 transition hover:bg-sky-100 dark:bg-sky-500/10 dark:text-sky-400 dark:hover:bg-sky-500/20"
+                      onClick={() => navigate(`/hotelform/${item._id}`)}
+                    >
+                      edit
+                    </button>
 
                     {item.approveStatus === "pending" && (
                       <>

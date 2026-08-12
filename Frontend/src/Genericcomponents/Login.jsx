@@ -35,7 +35,7 @@ function Login() {
 
          if(Object.keys(errobj).length===0){
             try{
-            const result=await axios.post('http://localhost:8080/user/login',{...logind})
+            const result=await axios.post(`${import.meta.env.VITE_API_URL}/user/login`,{...logind})
             console.log(result);
             
             if(result.status===200){

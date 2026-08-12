@@ -1,6 +1,6 @@
 import axios from "axios";
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 const BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -10,6 +10,8 @@ function Hoteladdform() {
   const role=localStorage.getItem("user")
 
   const adminemail=localStorage.getItem("email")
+
+  const {hotelid}=useParams()
 
  const token=localStorage.getItem('token')
   const [citydata, setcitydata] = useState([]);
@@ -49,7 +51,7 @@ function Hoteladdform() {
           headers: { Authorization: `Bearer ${token}` },
         });
       setadmindata(result?.data?.response || []);
-      console.log("<<<",result);
+   
       
     } catch (err) {
       if(err.status===401){
@@ -64,7 +66,6 @@ function Hoteladdform() {
     }
   }
  
-console.log(hoteld);
 
 
   const [checkstatus,setcheckstatus]=useState(false)
@@ -72,6 +73,14 @@ console.log(hoteld);
   const [checkid,setcheckid]=useState("")
   const [checkdata,setcheckdata]=useState(null)
   async function handlecheck() {
+
+       if (!checkid || checkid.trim() === "") {
+        seterrors({...errors,checkid:"Check ID is required"});
+  return;
+}
+
+seterrors("");
+
          try{
             const result = await axios.get(`${BASE_URL}/hotel/getcheckone/${checkid}`,{
           headers: { Authorization: `Bearer ${token}` },
@@ -94,11 +103,11 @@ console.log(hoteld);
      localStorage.removeItem("theme")
      navigate('/login')
     }
-          console.log(error);
+     alert(err?.response?.data?.message)
+         
          }
   }
   
-  console.log(checkdata);
   
 
   const [notific,setnotific]=useState("")
@@ -153,7 +162,9 @@ console.log(hoteld);
         if(result.status===200){
            sethoteld({...checkdata,CityId:checkdata?.CityId?._id})
            setshowOtpModal(false)
+           setotp("")
            setnotific("otp verified successfully")
+           setemailVerified(true)
         }
        
     }
@@ -177,6 +188,8 @@ console.log(hoteld);
     }
     seterr(obj)
   }
+
+  
 
 
   const [showemailOtpModal,setshowemailOtpModal]=useState(false)
@@ -273,6 +286,29 @@ console.log(hoteld);
     seterr(obj)
   }
 
+  const fetchHotel = async () => {
+  try {
+    const result = await axios.get(
+      `${BASE_URL}/hotel/getonehotel/${hotelid}`
+    );
+
+    if (result.status === 200) {
+      const hotel = result.data.response;
+      sethoteld({...hotel,CityId:hotel?.CityId?._id,admin_id:hotel?.admin_id?._id})
+    }
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+
+
+useEffect(() => {
+  if (hotelid) {
+    fetchHotel();
+  }
+}, [hotelid]);
+
   useEffect(() => {
     fetchcity();
     if(role==="superadmin"){
@@ -327,7 +363,7 @@ console.log(hoteld);
     } else if (!/^[0-9+\-\s()]{7,15}$/.test(hoteld.hotelPhone)) {
       e.hotelPhone = "Enter a valid phone number";
     }
-    if (!hoteld.hotelImage) {
+    if (!hoteld.hotelImage && !hoteld._id) {
   e.hotelImage = "Hotel image is required";
 }
     seterrors(e);
@@ -341,7 +377,8 @@ console.log(hoteld);
     if (!validate()) return;
      setsubmitting(true);
 
-     if(role==="superadmin"){
+     if(role==="superadmin" && 
+!hoteld._id){
       try {
       const formData = new FormData();
 
@@ -421,6 +458,7 @@ const result=await axios.post(
           description: "",
           Address: "",
           CityId: "",
+          admin_id:"",
           pricePerNight: "",
           totalRooms: "",
           hotelEmail: "",
@@ -767,6 +805,7 @@ const result=await axios.post(
         {checkdata.approveStatus==="pending" && 
         <button
           onClick={() =>{ setshowOtpModal(true)
+             handlesendotp()
              setshowcheckdata(false)
           }}
           className="rounded-lg bg-blue-600 px-6 py-2 font-semibold text-white transition hover:bg-blue-700 active:scale-95"
@@ -811,6 +850,12 @@ const result=await axios.post(
         >
           Check Status
         </button>
+
+        {errors.checkid && (
+  <p className="mt-1 text-sm text-red-500">
+    {errors.checkid}
+  </p>
+)}
       </div>
 
     </div>
@@ -1061,9 +1106,10 @@ const result=await axios.post(
     </p>
   )}
 
-  {hoteld.hotelImage && (
+  {hoteld.hotelImage || hoteld.images && (
     <img
-      src={URL.createObjectURL(hoteld.hotelImage)}
+       src={hoteld.images || URL.createObjectURL(hoteld.hotelImage)
+    }
       alt="Preview"
       className="mt-3 h-40 w-full rounded-lg border object-cover"
     />
