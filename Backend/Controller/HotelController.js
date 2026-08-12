@@ -24,8 +24,6 @@ exports.hotladd = async (req, res) => {
     }
     const existing = await hotels.findOne({ hotelEmail, approveStatus: "approved" })
     if (existing) {
-      console.log(existing);
-
       return res.status(409).json({ message: "hotel already exist" })
     }
 
@@ -58,21 +56,35 @@ exports.hotladd = async (req, res) => {
 
 exports.hotelupdate = async (req, res) => {
   try {
-    const { _id, hotelName, description, Address, CityId, pricePerNight, totalRooms, hotelEmail, hotelPhone } = req.body
+    const { _id, hotelName, description, Address, CityId, pricePerNight, totalRooms, hotelEmail, hotelPhone,admin_id } = req.body
 
-    if (!(hotelName && description && Address && CityId && pricePerNight && totalRooms && hotelEmail && hotelPhone)) {
+    if (!(hotelName && description && Address && CityId && pricePerNight && totalRooms && hotelEmail && hotelPhone && admin_id)) {
       return res.status(404).json({ message: "all keys are required" })
     }
 
+    const hoteldata = await hotels.findById(_id)
 
-    let url = null;
+    if(!hoteldata){
+      return res.status(404).json({message:"hotel not found"})
+    }
+
+     let url =hoteldata.images
     if (req.files) {
       const uploaddata = await uploadimage(req.files);
       url = uploaddata[0].url;
     }
-    const statedata = await hotels.findById(_id)
-
-    const data = req.body
+    
+    const data ={
+      hotelEmail,
+      hotelName,
+      hotelPhone,
+      description,
+      Address,
+      CityId,
+      admin_id,
+      pricePerNight,
+      totalRooms
+    }
     const response = await hotels.findByIdAndUpdate(_id, { ...data, images: url })
     return res.status(201).json({ message: "hotel updated successfully" })
   }
@@ -227,7 +239,16 @@ exports.hotelreadadminopt = async (req, res) => {
 exports.hotelreadone = async (req, res) => {
   try {
     const id = req.params.id
+
+    if(!id){
+      return res.status(400).json({message : "id not found"})
+    }
+
     const response = await hotels.findOne({ _id: id }).populate("CityId").populate('admin_id')
+
+     if(!response){
+      return res.status(404).json({message : "wrong checkid data not found"})
+    }
     return res.status(200).json({ response })
   }
   catch (err) {
@@ -238,7 +259,14 @@ exports.hotelreadone = async (req, res) => {
 exports.hotelcheckone = async (req, res) => {
   try {
     const checkid = req.params.id
+
+    if(!checkid){
+      return res.status(400).json({message : "check id not found"})
+    }
     const response = await hotels.findOne({ checkid }).populate("CityId")
+    if(!response){
+      return res.status(404).json({message : "wrong checkid data not found"})
+    }
     return res.status(200).json({ response })
   }
   catch (err) {
@@ -475,14 +503,14 @@ exports.updateotpverify = async (req, res) => {
     }
 
     if (Number(otp) === hotel.otp && moment().isSameOrBefore(hotel.expiretime)) {
-      await hotels.findOneAndUpdate({ hotelEmail: email }, { otp: "", expiretime: "" });
+      await hotels.findOneAndUpdate({ hotelEmail: email }, { otp: null, expiretime: null });
       return res.status(200).json({ message: "Code verify" });
     }
     else if (hotel.otp !== Number(otp)) {
       return res.status(400).json({ message: "wrong code" });
     }
     else {
-      await hotels.findOneAndUpdate({ hotelEmail: email }, { otp: "", expiretime: "" });
+      await hotels.findOneAndUpdate({ hotelEmail: email }, { otp: null, expiretime: null });
       return res.status(403).json({ message: "Code expire" });
     }
   }

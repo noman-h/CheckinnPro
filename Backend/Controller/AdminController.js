@@ -20,7 +20,7 @@ exports.adminadd = async (req, res) => {
     if (!(ownername && owneremail && ownerphone && address && cityId)) {
       return res.status(404).json({ message: "all keys are required" });
     }
-    const existing = await admins.findOne({ owneremail, approveStatus: "approved" });
+    const existing = await admins.findOne({ owneremail });
     if (existing) {
       return res.status(409).json({ message: "admin already exist" });
     }
@@ -68,41 +68,110 @@ exports.adminadd = async (req, res) => {
 
 exports.adminupdate = async (req, res) => {
   try {
-    const { _id, ownername, owneremail, ownerphone, address, cityId } =
-      req.body;
-    console.log(req.body);
+    const {
+      _id,
+      ownername,
+      owneremail,
+      ownerphone,
+      address,
+      cityId,
+      aadhaarNumber
+    } = req.body;
 
+    console.log("BODY:", req.body);
+    console.log("FILES:", req.files);
 
-    if (!(_id && ownername && owneremail && ownerphone && address && cityId)) {
-      return res.status(404).json({ message: "all keys are required" });
+    if (
+      !(_id &&
+        ownername &&
+        owneremail &&
+        ownerphone &&
+        address &&
+        cityId)
+    ) {
+      return res.status(404).json({
+        message: "all keys are required"
+      });
     }
 
-    let urlprofile = null;
-    let urlaadharfront = null;
-    let urlaadharback = null;
-    if (req.files) {
-      const uploaddata = await uploadimage(req.files);
-      urlprofile = uploaddata[0].url;
-      urlaadharfront = uploaddata[1].url;
-      urlaadharback = uploaddata[2].url;
-    }
+    // Find existing admin
     const admindata = await admins.findById(_id);
-    if (!admindata)
-      return res.status(404).json({ message: "admindata not found" });
 
-    const data = req.body;
-    const response = await admins.findByIdAndUpdate(_id, {
-      ...data,
-      otp: null,
-      profileImage: urlprofile,
-      aadhaarFront: urlaadharfront,
-      aadhaarBack: urlaadharback,
+    if (!admindata) {
+      return res.status(404).json({
+        message: "admindata not found"
+      });
+    }
+
+    // Keep old images by default
+    let profileImage = admindata.profileImage;
+    let aadhaarFront = admindata.aadhaarFront;
+    let aadhaarBack = admindata.aadhaarBack;
+
+    // Upload only images that are actually provided
+    if (req.files) {
+
+      // Profile image
+      if (req.files.profileImage) {
+        const uploadProfile = await uploadimage({
+          profileImage: req.files.profileImage
+        });
+
+        profileImage = uploadProfile[0].url;
+      }
+
+      // Aadhaar front
+      if (req.files.aadhaarFront) {
+        const uploadFront = await uploadimage({
+          aadhaarFront: req.files.aadhaarFront
+        });
+
+        aadhaarFront = uploadFront[0].url;
+      }
+
+      // Aadhaar back
+      if (req.files.aadhaarBack) {
+        const uploadBack = await uploadimage({
+          aadhaarBack: req.files.aadhaarBack
+        });
+
+        aadhaarBack = uploadBack[0].url;
+      }
+    }
+
+    const data = {
+      ownername,
+      owneremail,
+      ownerphone,
+      address,
+      cityId,
+      aadhaarNumber,
+      profileImage,
+      aadhaarFront,
+      aadhaarBack
+    };
+
+    const response = await admins.findByIdAndUpdate(
+      _id,
+      data,
+      {
+        new: true,
+        runValidators: true
+      }
+    );
+
+    return res.status(200).json({
+      message: "Admin details updated successfully",
+      response
     });
-    return res.status(201).json({ message: "ownerdetail updated successfully" });
+
   } catch (err) {
     console.log(err);
 
-    return res.status(500).json({ message: "internal server error", err });
+    return res.status(500).json({
+      message: "internal server error",
+      err: err.message
+    });
   }
 };
 
@@ -157,7 +226,17 @@ exports.adminreadall = async (req, res) => {
 exports.adminreadone = async (req, res) => {
   try {
     const id = req.params.id;
+
+     if(!id){
+      return res.status(400).json({message:"bad request"})
+    }
+
     const response = await admins.findOne({ _id: id }).populate("cityId");
+
+    if(!response){
+      return res.status(404).json({message : "wrong checkid data not found"})
+    }
+
     return res.status(200).json({ response });
   } catch (err) {
     return res.status(500).json({ message: "internal server error" });
@@ -167,9 +246,19 @@ exports.adminreadone = async (req, res) => {
 exports.admincheckone = async (req, res) => {
   try {
     const checkid = req.params.id;
+
+    if(!checkid){
+      return res.status(400).json({message:"bad request"})
+    }
+
+    
     const response = await admins.findOne({ checkid }).populate("cityId");
+    if(!response){
+      return res.status(404).json({message : "wrong checkid data not found"})
+    }
     return res.status(200).json({ response });
   } catch (err) {
+    
     return res.status(500).json({ message: "internal server error" });
   }
 };
@@ -414,7 +503,7 @@ exports.updateotpverify = async (req, res) => {
     ) {
       await admins.findOneAndUpdate(
         { owneremail: email },
-        { otp: "", expiretime: "" },
+        { otp: null, expiretime: null },
       );
       return res.status(200).json({ message: "Code verify" });
     } else if (ownerdetail.otp !== Number(otp)) {
@@ -422,7 +511,7 @@ exports.updateotpverify = async (req, res) => {
     } else {
       await admins.findOneAndUpdate(
         { owneremail: email },
-        { otp: "", expiretime: "" },
+        { otp: null, expiretime: null },
       );
       return res.status(403).json({ message: "Code expire" });
     }
