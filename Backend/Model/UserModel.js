@@ -22,14 +22,6 @@ const userschema=mongoose.Schema({
         type:String,
         default:"user"
     },
-    hotel_id:{
-       type:mongoose.Schema.Types.ObjectId,
-        required:false
-    },
-    admin_id:{
-        type:mongoose.Schema.Types.ObjectId,
-        required:false
-    },
     theme:{
        type:String,
        default:"light"
