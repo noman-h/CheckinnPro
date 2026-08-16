@@ -23,6 +23,9 @@ import Adminprotect from './ProtectedRoutes/Adminprotect'
 import Hotelprotect from './ProtectedRoutes/Hotelprotect'
 import Superadminprotect from './ProtectedRoutes/Superadminprotect'
 import Pagenotfound from './Genericcomponents/Pagenotfound'
+import Footer from './Genericcomponents/Footer'
+import AboutUs from './Genericcomponents/Aboutus'
+import Contactus from './Genericcomponents/Contactus'
 
 function App() {
 
@@ -57,11 +60,16 @@ function App() {
        <Route path='/roombook/:roomid' element={<Protectedroute><UserRoombook/></Protectedroute>}/> 
 
        <Route path='/userbookings' element={<Protectedroute><Userbookings/></Protectedroute>}/> 
+      
+      <Route path='/about' element={<AboutUs/>}/>
+
+      <Route path='/contact' element={<Contactus/>}/>
 
       <Route path="*" element={<Pagenotfound />} />
        
       </Routes>
     </main>
+     <Footer/>
     </div>
     </BrowserRouter>
   )

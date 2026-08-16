@@ -38,7 +38,6 @@ function Usetheme() {
         
         document.body.className=theme
         if(token){
-            
             localStorage.setItem("theme",theme)
             fetchtheme()
         }
