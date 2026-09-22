@@ -52,7 +52,7 @@ const adminSchema = new mongoose.Schema({
   checkid: {
       type: String,
       default: null,
-    },
+    }, 
 
   activeStatus: {
     type: Boolean,

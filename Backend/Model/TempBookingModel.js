@@ -4,7 +4,8 @@ const tempbookschema=mongoose.Schema({
     roomId:{
         type:mongoose.Schema.Types.ObjectId,
         required:true,
-        ref:"rooms"
+        ref:"rooms",
+        unique:true
     },
     userId:{
         type:mongoose.Schema.Types.ObjectId,

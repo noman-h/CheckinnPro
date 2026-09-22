@@ -20,7 +20,7 @@ exports.adminadd = async (req, res) => {
     if (!(ownername && owneremail && ownerphone && address && cityId)) {
       return res.status(404).json({ message: "all keys are required" });
     }
-    const existing = await admins.findOne({ owneremail });
+    const existing = await admins.findOne({ owneremail ,approveStatus:"approved" });
     if (existing) {
       return res.status(409).json({ message: "admin already exist" });
     }
@@ -53,7 +53,7 @@ exports.adminadd = async (req, res) => {
         aadhaarBack: urlaadharback,
       });
 
-      return res.status(201).json({ message: "ownerdetail requested successfully" });
+      return res.status(201).json({ message: "Admindetail requested successfully" });
     }
 
     return res
