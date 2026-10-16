@@ -9,6 +9,8 @@ function UserDashboard() {
 
   const [hoteldata, sethoteldata] = useState([]);
   const [citydata, setcitydata] = useState([]);
+  const [districtdata, setdistrictdata] = useState([]);
+  const [statedata, setstatedata] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
@@ -48,10 +50,30 @@ function UserDashboard() {
     }
   }
 
+  async function fetchstates() {
+    try {
+      const result = await axios.get(
+        `${import.meta.env.VITE_API_URL}/location/getallstate?status=true`
+      );
+      setstatedata(result?.data?.response || []);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+  async function fetchdistricts() {
+    try {
+      const result = await axios.get(
+        `${import.meta.env.VITE_API_URL}/location/getalldistrict?status=true&&statesort=${stateselect}`
+      );
+      setdistrictdata(result?.data?.response || []);
+    } catch (err) {
+      console.error(err);
+    }
+  }
   async function fetchcity() {
     try {
       const result = await axios.get(
-        `${import.meta.env.VITE_API_URL}/location/getallcity`
+        `${import.meta.env.VITE_API_URL}/location/getallcity?status=true&districtsort=${districtselect}`
       );
       setcitydata(result?.data?.response || []);
     } catch (err) {
@@ -60,8 +82,18 @@ function UserDashboard() {
   }
 
   useEffect(() => {
-    fetchcity();
+    fetchstates();
   }, []);
+
+  useEffect(()=>{
+       if(stateselect && !districtselect){
+        fetchdistricts()
+       }
+       if(districtselect){
+        fetchcity()
+       }
+  },[stateselect,districtselect])
+  
 
   // Reset page to 1 when filters change
   useEffect(() => {
@@ -95,35 +127,23 @@ function UserDashboard() {
 
   // Dropdown options
   const stateOptions = useMemo(() => {
-    return citydata.map((s) => (
-      <option key={s?.district_id?.
-state_id} value={s?.district_id?.
-state_id?.statename}>
-        {s?.district_id?.
-state_id?.statename}
+    return statedata.map((s) => (
+      <option key={s._id} value={s._id}>
+        {s.statename}
       </option>
     ));
-  }, [citydata]);
+  }, [statedata]);
 
   const districtOptions = useMemo(() => {
-    const currentState = citydata.find((s) => s?.district_id?.
-state_id?.statename === stateselect);
-    if (!currentState) return [];
-    return (currentState.alldistricts || []).map((d) => (
+    return districtdata.map((d) => (
       <option key={d._id || d.districtname} value={d._id}>
         {d.districtname}
       </option>
     ));
-  }, [citydata, stateselect]);
+  }, [districtdata, stateselect]);
 
   const cityOptions = useMemo(() => {
-    const currentState = citydata.find((s) => s.statename === stateselect);
-    if (!currentState) return [];
-    const currentDistrict = (currentState.alldistricts || []).find(
-      (d) => d._id === districtselect || d.districtname === districtselect
-    );
-    if (!currentDistrict) return [];
-    return (currentDistrict.allcities || []).map((c) => (
+    return citydata.map((c) => (
       <option key={c._id || c.cityname} value={c._id || c.cityname}>
         {c.cityname}
       </option>

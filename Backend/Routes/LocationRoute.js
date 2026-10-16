@@ -10,7 +10,7 @@ const authorize=require('../Middleware/Authorize')
 
 router.post('/addstate',auth,authorize('superadmin'),statecontroller.stateadd)
 router.patch('/updatestate',auth,authorize('superadmin'),statecontroller.stateupdate)
-router.get('/getallstate',auth,authorize('superadmin'),statecontroller.statereadall)
+router.get('/getallstate',statecontroller.statereadall)
 router.get('/getonestate/:id',auth,authorize('superadmin'),statecontroller.statereadone)
 router.patch('/softdeletestate/:id',auth,authorize('superadmin'),statecontroller.statesoftdelete)
 router.patch('/recoverdeletestate/:id',auth,authorize('superadmin'),statecontroller.staterecoverdelete)
@@ -18,7 +18,7 @@ router.delete('/deletestate/:id',auth,authorize('superadmin'),statecontroller.st
 
 router.post('/adddistrict',auth,authorize('superadmin'),districtcontroller.districtadd)
 router.patch('/updatedistrict',auth,authorize('superadmin'),districtcontroller.districtupdate)
-router.get('/getalldistrict',auth,authorize('superadmin'),districtcontroller.districtreadall)
+router.get('/getalldistrict',districtcontroller.districtreadall)
 router.get('/getonedistrict/:id',auth,authorize('superadmin'),districtcontroller.districtreadone)
 router.patch('/softdeletedistrict/:id',auth,authorize('superadmin'),districtcontroller.districtsoftdelete)
 router.patch('/recoverdeletedistrict/:id',auth,authorize('superadmin'),districtcontroller.districtrecoverdelete)
