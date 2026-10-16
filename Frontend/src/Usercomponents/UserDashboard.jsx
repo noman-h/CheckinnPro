@@ -96,14 +96,18 @@ function UserDashboard() {
   // Dropdown options
   const stateOptions = useMemo(() => {
     return citydata.map((s) => (
-      <option key={s._id || s.statename} value={s.statename}>
-        {s.statename}
+      <option key={s?.district_id?.
+state_id} value={s?.district_id?.
+state_id?.statename}>
+        {s?.district_id?.
+state_id?.statename}
       </option>
     ));
   }, [citydata]);
 
   const districtOptions = useMemo(() => {
-    const currentState = citydata.find((s) => s.statename === stateselect);
+    const currentState = citydata.find((s) => s?.district_id?.
+state_id?.statename === stateselect);
     if (!currentState) return [];
     return (currentState.alldistricts || []).map((d) => (
       <option key={d._id || d.districtname} value={d._id}>
